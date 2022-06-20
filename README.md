@@ -1,1 +1,2 @@
-# LF_novel_kernel_honours_2022
+# Novel kernel for light field images Honours thesis 2022 Sydney University 
+
