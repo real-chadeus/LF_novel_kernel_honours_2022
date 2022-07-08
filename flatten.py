@@ -2,13 +2,15 @@ from PIL import Image, ImageChops
 import numpy as np
 import sys, glob, os, random
 import pandas as pd
+import matplotlib.pyplot as plt
+
+### Flatten datasets which have LFIs as 2D image files of each SAI.
 
 exclude_ref = True
 dataset_root, _, s = ".\\", None, '\\'
 dn = "MPI-LFA"
 af = "x8" ###-
 img_format = "png"
-
 
 def select_sai_range(n_sai, target_n_sai=49):
     n_sai = n_sai
@@ -17,7 +19,6 @@ def select_sai_range(n_sai, target_n_sai=49):
     left = mid - target_n_sai//2
     right = mid + target_n_sai//2
     return left, right
-
 
 
 def proc_sai(p):
@@ -43,24 +44,14 @@ def proc_sai(p):
     return np.asarray(new_img)
 
 
-
 def flatten_dataset(save_dir,read_dir,
                     n_sai,name='stacked.png',
                     target_n_sai=49):
-    read_dir = read_dir
     read_img_paths = glob.glob(read_dir+"**/*."+img_format, recursive=True)
     read_img_paths = sorted(read_img_paths)
 
-    save_dir = './'
-    save_ref = save_dir+'/ref/'
-    save_dist = save_dir+'/dist/'
-    if not os.path.exists(save_ref):
-        os.makedirs(save_ref)
-
-    if not os.path.exists(save_dist):
-        os.makedirs(save_dist)
-        ref_word = 'ALL_REF'
-
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     # print(read_img_paths)
     print(len(read_img_paths)//101)
@@ -98,7 +89,9 @@ def flatten_dataset(save_dir,read_dir,
 
             new_img = Image.fromarray(lfi)
 
-            new_img.save(save_ref+name,img_format)
+            new_img.show()
+            print(save_dir)
+            new_img.save(save_dir+name)
             
             print(f"{name} saved.")
             break
@@ -106,6 +99,6 @@ def flatten_dataset(save_dir,read_dir,
 
 if __name__ == "__main__":
     data_path = '../../datasets'
-    flatten_dataset(save_dir=data_path + '/hci_dataset/training/boxes/stacked', 
+    flatten_dataset(save_dir=data_path + '/hci_dataset/training/boxes/stacked/', 
                     read_dir=data_path + '/hci_dataset/training/boxes/',
                     n_sai=80)
