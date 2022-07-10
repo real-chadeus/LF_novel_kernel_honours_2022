@@ -21,14 +21,14 @@ def select_sai_range(n_sai, target_n_sai=49):
     return left, right
 
 
-def proc_sai(p):
+def proc_sai(p, img_size=512):
     img = Image.open(p)
     w, h = img.size
     # left, top, right, bottom
-    w_offset = int((w-434)/2)
-    h_offset = int((h-434)/2)
-    l,r = w_offset, w_offset+434
-    tp,b = h_offset, h_offset+434
+    w_offset = int((w-img_size)/2)
+    h_offset = int((h-img_size)/2)
+    l,r = w_offset, w_offset+img_size
+    tp,b = h_offset, h_offset+img_size
     window = (l,tp,r,b)
     new_img = img.crop(window)
     #split img into red green blue components
@@ -68,7 +68,7 @@ def flatten_dataset(save_dir,read_dir,
             continue
 
         if j == left:
-            to_shape=(7,434,7,434,3)
+            to_shape=(7,512,7,512,3)
             lfi = np.zeros(to_shape, dtype=np.uint8)
             frames = []
             
@@ -85,7 +85,7 @@ def flatten_dataset(save_dir,read_dir,
             # print(frames)
             j = 0
             parts = p.split(s)
-            lfi = lfi.reshape((7*434, 7*434, 3), order='F')
+            lfi = lfi.reshape((7*512, 7*512, 3), order='F')
 
             new_img = Image.fromarray(lfi)
 
@@ -98,7 +98,7 @@ def flatten_dataset(save_dir,read_dir,
 
 
 if __name__ == "__main__":
-    data_path = '../../datasets'
+    data_path = '../../../datasets'
     flatten_dataset(save_dir=data_path + '/hci_dataset/training/boxes/stacked/', 
                     read_dir=data_path + '/hci_dataset/training/boxes/',
                     n_sai=80)

@@ -7,7 +7,7 @@
 # visit http://creativecommons.org/licenses/by-nc-sa/4.0/.          #
 #####################################################################
 
-import ConfigParser
+import configparser
 import os
 import sys
 
@@ -26,7 +26,7 @@ def read_lightfield(data_folder):
             img = read_img(fpath)
             light_field[idx / params["num_cams_x"], idx % params["num_cams_y"], :, :, :] = img
         except IOError:
-            print "Could not read input file: %s" % fpath
+            print("Could not read input file: ",fpath)
             sys.exit()
 
     return light_field
@@ -78,9 +78,10 @@ def read_parameters(data_folder):
 def read_depth(data_folder, highres=False):
     fpath = os.path.join(data_folder, "gt_depth_%s.pfm" % ("highres" if highres else "lowres"))
     try:
+        print("depth file read success: ", fpath)
         data = read_pfm(fpath)
     except IOError:
-        print "Could not read depth file: %s" % fpath
+        print("Could not read depth file: %s",fpath)
         sys.exit()
     return data
 
@@ -88,9 +89,10 @@ def read_depth(data_folder, highres=False):
 def read_disparity(data_folder, highres=False):
     fpath = os.path.join(data_folder, "gt_disp_%s.pfm" % ("highres" if highres else "lowres"))
     try:
+        print("disparity file read success: ", fpath)
         data = read_pfm(fpath)
     except IOError:
-        print "Could not read disparity file: %s" % fpath
+        print("Could not read disparity file: ",fpath)
         sys.exit()
     return data
 
@@ -116,7 +118,7 @@ def write_pfm(data, fpath, scale=1, file_identifier="Pf", dtype="float32"):
     height, width = np.shape(data)[:2]
     values = np.ndarray.flatten(np.asarray(data, dtype=dtype))
     endianess = data.dtype.byteorder
-    print endianess
+    print(endianess)
 
     if endianess == '<' or (endianess == '=' and sys.byteorder == 'little'):
         scale *= -1
@@ -136,7 +138,6 @@ def read_pfm(fpath, expected_identifier="Pf"):
         identifier = _get_next_line(f)
         if identifier != expected_identifier:
             raise Exception('Unknown identifier. Expected: "%s", got: "%s".' % (expected_identifier, identifier))
-
         try:
             line_dimensions = _get_next_line(f)
             dimensions = line_dimensions.split(' ')
@@ -173,6 +174,12 @@ def read_pfm(fpath, expected_identifier="Pf"):
 def _get_next_line(f):
     next_line = f.readline().rstrip()
     # ignore comments
-    while next_line.startswith('#'):
+    while next_line.startswith(b'#'):
         next_line = f.readline().rstrip()
-    return next_line
+    return next_line.decode("utf-8")
+
+
+
+
+
+

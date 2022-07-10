@@ -5,4 +5,4 @@ supervisor: Dr. Vera Chung
 
 
 
-credit to Katrin Honauer & Ole Johannsen for file IO for the HCI dataset
+credit to Katrin Honauer & Ole Johannsen for the HCI dataset tools
