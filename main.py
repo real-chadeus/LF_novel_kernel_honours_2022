@@ -47,14 +47,16 @@ if __name__ == "__main__":
         print(elem.numpy().shape)
 
     model = keras.Sequential([
-    keras.layers.Conv2D(input_shape=(28,28,1), filters=8, kernel_size=3, 
-                          strides=2, activation='relu', name='Conv1'),
+                        keras.layers.Conv2D(input_shape=(28,28,1), filters=8, 
+                            kernel_size=3, strides=2, activation='relu', name='Conv1'),
                         keras.layers.Flatten(),
                         keras.layers.Dense(10, name='Dense')
     ])
     model.summary()
 
-    
+
+
+
 
 
 
