@@ -21,7 +21,8 @@ def allocate_gpu_memory():
         print("No GPU detected")
 
 
-#def build_model(): 
+def build_model():
+    x =  
     
      
 
