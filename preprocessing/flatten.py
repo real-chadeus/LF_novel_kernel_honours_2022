@@ -5,7 +5,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 ### Flatten datasets which have LFIs as 2D image files of each SAI.
-
 exclude_ref = True
 dataset_root, _, s = ".\\", None, '\\'
 dn = "MPI-LFA"
@@ -44,7 +43,7 @@ def proc_sai(p, img_size=512):
     return np.asarray(new_img)
 
 
-def flatten_dataset(save_dir,read_dir,
+def flatten_hci(save_dir,read_dir,
                     n_sai,name='stacked.png',
                     target_n_sai=49):
     read_img_paths = glob.glob(read_dir+"**/*."+img_format, recursive=True)
@@ -53,12 +52,8 @@ def flatten_dataset(save_dir,read_dir,
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    # print(read_img_paths)
-    print(len(read_img_paths)//101)
     left, right  = select_sai_range(n_sai)
-
     print(f'left:{left}, right: {right}')
-
     i = 0
     j = 0
 
@@ -92,13 +87,21 @@ def flatten_dataset(save_dir,read_dir,
             new_img.show()
             print(save_dir)
             new_img.save(save_dir+name)
-            
             print(f"{name} saved.")
             break
 
+def flatten_sintel(save_dir,read_dir,
+                    n_sai,name='stacked.png',
+                    target_n_sai=49):
+    read_img_paths = glob.glob(read_dir+"**/*."+img_format, recursive=True)
+    read_img_paths = sorted(read_img_paths)
 
 if __name__ == "__main__":
     data_path = '../../../datasets'
-    flatten_dataset(save_dir=data_path + '/hci_dataset/training/boxes/stacked/', 
+    flatten_hci(save_dir=data_path + '/hci_dataset/training/boxes/stacked/', 
                     read_dir=data_path + '/hci_dataset/training/boxes/',
                     n_sai=80)
+
+
+
+
