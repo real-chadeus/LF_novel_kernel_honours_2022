@@ -18,7 +18,6 @@ data_path = '../../datasets'
 hci_boxes = '/hci_dataset/training/boxes/'
 hci_boxes_stacked = '/hci_dataset/training/boxes/stacked/'
 
-
 def load_hci(num_imgs=1, 
                  read_dirs=[data_path+hci_boxes],
                  img_shape = (7,512,7,512,3)):
@@ -41,7 +40,6 @@ def load_hci(num_imgs=1,
     dataset = tf.data.Dataset.from_tensor_slices((img_set, labels))
     return dataset
 
-
 def load_sintel(num_imgs=1, 
                  read_dirs=[data_path+hci_boxes],
                  img_shape = (7,512,7,512,3)):
@@ -58,8 +56,6 @@ def load_sintel(num_imgs=1,
         # read disparity maps
         disp = sintel_io.read_disp(data_path + hci_boxes)
         disparities.append(disp)
-    
-
 
 def load_dataset(num_imgs=1, 
                  read_dirs=[data_path+hci_boxes],
@@ -82,7 +78,6 @@ def load_dataset(num_imgs=1,
     print(img_set.shape)
     dataset = tf.data.Dataset.from_tensor_slices((img_set, labels))
     return dataset
-
 
 
 #if __name__ == "__main__":

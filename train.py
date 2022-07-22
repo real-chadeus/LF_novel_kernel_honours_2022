@@ -33,7 +33,6 @@ def train(model, args, dataset):
         return lr * factor
    
     lr_schedule = LearningRateScheduler(step_decay, verbose=1)
-
     batch_size = 32
     epochs = 10
     # fit model
