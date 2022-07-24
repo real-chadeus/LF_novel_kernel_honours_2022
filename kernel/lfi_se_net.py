@@ -30,9 +30,10 @@ class LFSEBlock(tf.keras.Model):
 
 def build_model(shape):
     inputs = layers.Input(shape=shape, name='lfi_input')  
-    
-    
-     
+
+
+
+
 
 
 

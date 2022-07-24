@@ -47,7 +47,8 @@ def load_sintel(num_imgs=1,
     load images and disparity maps from Sintel dataset.
     Also converts disparity maps to depth maps 
     '''
-    disparities = []
+    img_set = []
+    labels = []
     for i in range(num_imgs):
         img = Image.open(read_dirs[i] + '/stacked/stacked.png')
         img = np.asarray(img)
@@ -55,7 +56,14 @@ def load_sintel(num_imgs=1,
         img_set.append(img)
         # read disparity maps
         disp = sintel_io.read_disp(data_path + hci_boxes)
-        disparities.append(disp)
+        depth = 0.01 * 1 / disp
+        labels.append(depth)
+
+    img_set = np.asarray(img_set)
+    labels = np.asarray(labels)
+    print(img_set.shape)
+    dataset = tf.data.Dataset.from_tensor_slices((img_set, labels))
+    return dataset
 
 
 #if __name__ == "__main__":
