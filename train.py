@@ -42,8 +42,8 @@ def train(model, args, dataset):
 
 if __name__ == "__main__":
     # define model
+    input_shape = (7,420,7,420,3)
     model = se_net.build_model()
-    print(model.summary())
     
     dataset = load.load_dataset()
     # args settings
