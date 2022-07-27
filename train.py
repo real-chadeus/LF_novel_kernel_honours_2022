@@ -1,4 +1,5 @@
 import pathlib, datetime
+import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
 import load
@@ -9,7 +10,7 @@ import tensorflow.keras.losses as losses
 print('tensorflow version: ', tf.__version__)
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-def train(model, args, dataset):
+def train(model, args, dataset, epochs=10, batch_size=32):
     # model compile
     lr = 0.0005
     loss = losses.BinaryCrossentropy()
@@ -33,19 +34,19 @@ def train(model, args, dataset):
         return lr * factor
    
     lr_schedule = LearningRateScheduler(step_decay, verbose=1)
-    batch_size = 32
-    epochs = 10
     # fit model
-    model.fit()
-
+    model.fit(dataset, batch_size=batch_size, 
+                epochs=epochs, validation_split=0.1)
 
 
 if __name__ == "__main__":
     # define model
     input_shape = (7,420,7,420,3)
-    model = se_net.build_model()
-    
-    dataset = load.load_dataset()
+    model = se_net.build_model(input_shape=input_shape)
+    # load datasets
+    hci = load.load_hci(img_shape=input_shape)
+    sintel = load.load_sintel(img_shape=input_shape)
+
     # args settings
     parser = argparse.ArgumentParser()
     parser.add_argument('--memo', '-m', default='')
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument('--valid_list', default='../patch_data_fl5/validation_data.txt')
     args=parser.parse_args()
 
-    # start train
+    # start training
     train(model=model, args=args, dataset=dataset)
 
 

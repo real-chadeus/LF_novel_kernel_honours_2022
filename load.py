@@ -11,8 +11,6 @@ import pandas as pd
 import scipy.io as sio
 import preprocessing.flatten as flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
-print('tensorflow version: ', tf.__version__)
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 data_path = '../../datasets'
 hci_boxes = '/hci_dataset/training/boxes/'
