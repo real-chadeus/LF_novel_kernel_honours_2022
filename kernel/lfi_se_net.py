@@ -13,12 +13,13 @@ class LFSEBlock(tf.keras.Model):
     def __init__(self, n_filters, filter_size):
         self.n_filters = n_filters
         self.filter_size = filter_size
-        super(LFSEBlock).__init__(name='light_field_se_block')
+        super(LFSEBlock, self).__init__(name='light_field_se_block')
     
     def call(self, input_tensor, training=True):
         shape = tf.shape(input_tensor) 
         height = shape[2]
         width = shape[4]
+        print(f'h {height}, w {width}')
         for i in range(self.n_filters):
             f_map = input_tensor[i]
             z_c = (1/(height * width)) * f_map.sum(axis=(1,3)) # squeeze across the angular axes
@@ -26,21 +27,23 @@ class LFSEBlock(tf.keras.Model):
 
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
-                    stride=2, img_shape=(420,420),
+                    stride=2, img_shape=(7,420,7,420,3),
                     n_lfi=1): 
     '''
     Convolution block for light field images.
     Does convolution depthwise on each SAI individually
     '''
     n_ang = int(np.sqrt(n_sais)) # angular dimension size
-    X = layers.Conv3D(n_filters, 1, padding='same', activation='relu')(inputs) 
     fmaps = [] # feature maps
+    X = inputs
     for i in range(n_lfi):
-        X1 = X[i,:,:,:,:]
-        X1 = tf.reshape(X1, (n_sais, img_shape[0], img_shape[1], 3))
+        if len(X.shape) == 6:
+            X1 = X[i,:,:,:,:]
+        else:
+            X1 = X
+        X1 = tf.reshape(X1, (n_sais, img_shape[1], img_shape[3], img_shape[-1]))
         X1 = layers.DepthwiseConv2D(filter_size, strides=1, padding='same', input_shape=X.shape[2:], activation='relu')(X1)  
-        print(X1.shape)
-        X1 = tf.reshape(X1, (n_ang, img_shape[0], n_ang, img_shape[1], 3))
+        X1 = tf.reshape(X1, (n_ang, img_shape[1], n_ang, img_shape[3], img_shape[-1]))
         fmaps.append(X1)
     X = tf.squeeze(tf.stack(fmaps, axis=1))
     X = layers.Conv3D(n_filters, 1, padding='same', activation='relu')(X)
@@ -54,16 +57,16 @@ def build_model(input_shape, summary=True):
     X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(inputs) 
     X = tf.nn.relu(X)
     
-    X = LF_conv_block(X, n_filters=3, filter_size=(3,3), img_shape=(X.shape[2], X.shape[4]))
-    X = layers.MaxPooling3D(pool_size=(2,2,2), padding='same')(X)
-    print('meme', X.shape)
-    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=(X.shape[2], X.shape[4])) 
-    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=(X.shape[2], X.shape[4]))
-    X = layers.MaxPooling3D(pool_size=(2,2,2), padding='same')(X)
-    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=(X.shape[2], X.shape[4])) 
-    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=(X.shape[2], X.shape[4]))
-    X = layers.MaxPooling3D(pool_size=(2,2,2), padding='same')(X)
-    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=(X.shape[2], X.shape[4])) 
+    X = LF_conv_block(X, n_filters=3, filter_size=(3,3))
+    X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
+    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape) 
+    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape)
+    X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
+    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape) 
+    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape)
+    X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
+    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape) 
+    print('finish')
     
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     
