@@ -17,20 +17,24 @@ class LFSEBlock(tf.keras.Model):
     
     def call(self, input_tensor, training=True):
         shape = tf.shape(input_tensor) 
-        height = shape[2]
-        width = shape[4]
+        height = shape[1]
+        width = shape[3]
         print(f'h {height}, w {width}')
+        z = [] 
         for i in range(self.n_filters):
-            f_map = input_tensor[i]
-            z_c = (1/(height * width)) * f_map.sum(axis=(1,3)) # squeeze across the angular axes
-        return tf.nn.linear(z_c)
+            f_map = input_tensor[:,:,:,:,i]
+            print(f_map.shape)
+            z_c = tf.cast(1/(height * width), dtype=tf.float32) * tf.math.reduce_sum(f_map, axis=(1,3)) # squeeze across the angular axes
+            z.append(z_c)
+        
+        return tf.nn.linear(z)
 
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
                     stride=2, img_shape=(7,420,7,420,3),
                     n_lfi=1): 
     '''
-    Convolution block for light field images.
+    Simple convolution block for light field images.
     Does convolution depthwise on each SAI individually
     '''
     n_ang = int(np.sqrt(n_sais)) # angular dimension size
@@ -66,7 +70,6 @@ def build_model(input_shape, summary=True):
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape)
     X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape) 
-    print('finish')
     
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     
