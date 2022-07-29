@@ -1,6 +1,6 @@
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.models import Model
+import tensorflow.keras.models as models
 from tensorflow.keras import backend as K
 import tensorflow as tf
 import numpy as np
@@ -19,7 +19,6 @@ class LFSEBlock(tf.keras.Model):
         shape = tf.shape(input_tensor) 
         height = shape[1]
         width = shape[3]
-        print(f'h {height}, w {width}')
         z = [] 
         for i in range(self.n_filters):
             f_map = input_tensor[:,:,:,:,i]
@@ -27,7 +26,7 @@ class LFSEBlock(tf.keras.Model):
             z_c = tf.cast(1/(height * width), dtype=tf.float32) * tf.math.reduce_sum(f_map, axis=(1,3)) # squeeze across the angular axes
             z.append(z_c)
         
-        return tf.nn.linear(z)
+        return tf.nn.relu(z)
 
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
@@ -68,11 +67,12 @@ def build_model(input_shape, summary=True):
     X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape)
-    X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
-    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape) 
+    X = LFSEBlock(n_filters=12, filter_size=(3,3))(X)
     
-    X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
+    X = layers.Flatten()(X)
     
+    model = models.Model(inputs=inputs, outputs=X)   
+ 
     if summary:
         model.summary()
 
