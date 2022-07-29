@@ -52,9 +52,10 @@ def LF_conv_block(inputs, n_filters=4,
     X = layers.Conv3D(n_filters, 1, padding='same', activation='relu')(X)
     return X
 
-def build_model(input_shape, summary=True):
+def build_model(input_shape, output_shape=420, summary=True):
     '''
     build the model
+    param output_shape: size of the 2D depth map. default 420
     '''
     inputs = layers.Input(shape=input_shape, name='lfse_model_input')
     X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(inputs) 
@@ -70,6 +71,8 @@ def build_model(input_shape, summary=True):
     X = LFSEBlock(n_filters=12, filter_size=(3,3))(X)
     
     X = layers.Flatten()(X)
+    X = layers.Reshape(target_shape=(output_shape,output_shape))(X)
+    X = layers.Dense()(X)
     
     model = models.Model(inputs=inputs, outputs=X)   
  
