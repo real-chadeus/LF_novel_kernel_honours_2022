@@ -16,14 +16,13 @@ class LFSEBlock(tf.keras.Model):
         super(LFSEBlock, self).__init__(name='light_field_se_block')
     
     def call(self, input_tensor, training=True):
-        r = 4 
+        r = 4 # reductionr ratio
         C = self.n_filters
         shape = tf.shape(input_tensor) 
         height = shape[1]
         width = shape[3]
-        W1 = tf.convert_to_tensor(np.zeros((C, C//r))) 
-        W2 = tf.convert_to_tensor(np.zeros((C//r, C)))
-        result = []
+        W1 = tf.cast(tf.convert_to_tensor(np.ones((C, C//r))), dtype=tf.float32) 
+        W2 = tf.cast(tf.convert_to_tensor(np.ones((C//r, C))), dtype=tf.float32)
         z = []
         f_maps = [] # original feature maps
         s = []
@@ -31,11 +30,16 @@ class LFSEBlock(tf.keras.Model):
             f_map = input_tensor[:,:,:,:,i]
             f_maps.append(f_map)
             z_c = tf.cast(1/(height * width), dtype=tf.float32) * tf.math.reduce_sum(f_map, axis=None) # squeeze 
-            print(z_c.shape)
             z.append(z_c)
-        s = tf.math.sigmoid(W2 * tf.nn.relu(W1 * z)) # excitation 
+        # excitation
+        z = tf.reshape(z, (self.n_filters,1))
+        g = tf.nn.relu(W1 * z)
+        g = tf.reshape(g, (g.shape[1], g.shape[0]))
+        s = tf.math.reduce_sum(tf.math.sigmoid(W2 * g), axis=0) 
+        result = s * input_tensor
+        result = tf.math.reduce_sum(result, axis=(0,2))
 
-        return tf.nn.relu(s)
+        return tf.nn.relu(result)
 
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
@@ -66,24 +70,26 @@ def build_model(input_shape, output_shape=420, summary=True):
     build the model
     param output_shape: size of the 2D depth map. default 420
     '''
+    # initial input and convolution + layer normalization
     inputs = layers.Input(shape=input_shape, name='lfse_model_input')
-    X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(inputs) 
+    X = layers.Dense(3)(inputs)
+    X = layers.LayerNormalization()(X)
+    X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(X) 
     X = tf.nn.relu(X)
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3))
-    #X = layers.MaxPooling3D(pool_size=(1,1,1), padding='same')(X)
+    #X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape) 
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape)
-    #X = layers.MaxPooling3D(pool_size=(1,1,1), padding='same')(X)
+    #X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape)
-    #X = layers.MaxPooling3D(pool_size=(1,1,1), padding='same')(X)
+    #X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape) 
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape)
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     
-    X = layers.Flatten()(X)
-    #X = layers.Reshape(target_shape=(output_shape,output_shape))(X)
+    X = tf.squeeze(layers.Dense(1)(X))
     
     model = models.Model(inputs=inputs, outputs=X)   
  
