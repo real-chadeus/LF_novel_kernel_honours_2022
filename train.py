@@ -10,7 +10,9 @@ import tensorflow.keras.losses as losses
 print('tensorflow version: ', tf.__version__)
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-def train(model, args, dataset, epochs=10, batch_size=32):
+sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1']
+
+def train(model, args, dataset, epochs=10, batch_size=1):
     # model compile
     lr = 0.0005
     loss = losses.BinaryCrossentropy()
@@ -41,11 +43,11 @@ def train(model, args, dataset, epochs=10, batch_size=32):
 
 if __name__ == "__main__":
     # define model
-    input_shape = (7,420,7,420,3)
+    input_shape = (7,512,7,512,3)
     model = se_net.build_model(input_shape=input_shape)
     # load datasets
     hci = load.load_hci(img_shape=input_shape)
-    sintel = load.load_sintel(img_shape=input_shape)
+    sintel = load.load_sintel(img_shape=input_shape, read_dirs=sintel_folders)
 
     # args settings
     parser = argparse.ArgumentParser()

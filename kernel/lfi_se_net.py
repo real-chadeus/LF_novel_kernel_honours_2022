@@ -37,13 +37,14 @@ class LFSEBlock(tf.keras.Model):
         g = tf.reshape(g, (g.shape[1], g.shape[0]))
         s = tf.math.reduce_sum(tf.math.sigmoid(W2 * g), axis=0) 
         result = s * input_tensor
+        # final sum over the angular axes 
         result = tf.math.reduce_sum(result, axis=(0,2))
 
         return tf.nn.relu(result)
 
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
-                    stride=2, img_shape=(7,420,7,420,3),
+                    stride=2, img_shape=(7,512,7,512,3),
                     n_lfi=1): 
     '''
     Simple convolution block for light field images.
@@ -78,18 +79,20 @@ def build_model(input_shape, output_shape=420, summary=True):
     X = tf.nn.relu(X)
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3))
-    #X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape) 
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape)
-    #X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape)
-    #X = layers.MaxPooling3D(pool_size=(2,1,2), padding='same')(X)
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape) 
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape)
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
+    X = layers.RandomFlip()(X)
     
-    X = tf.squeeze(layers.Dense(1)(X))
+    X = layers.Dense(512, activation='relu')(X)
+    X = layers.Dense(1024, activation='relu')(X)
+    X = layers.Dense(2048, activation='relu')(X)
+    #X = layers.Dense(4096, activation='relu')(X)
+    X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   
  

@@ -157,11 +157,11 @@ if __name__ == "__main__":
     data_path = '../../../datasets'
     flatten_hci(save_dir=data_path + '/hci_dataset/training/boxes/stacked/', 
                     read_dir=data_path + '/hci_dataset/training/boxes/',
-                    n_sai=80)
+                    n_sai=80, img_size=512)
     
     flatten_sintel(save_dir = data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1/stacked/',
                     read_dir = data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1/',
-                    n_sai=81, frame='000')
+                    n_sai=81, frame='000', img_size=512)
 
 
 

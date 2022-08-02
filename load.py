@@ -11,6 +11,7 @@ import pandas as pd
 import scipy.io as sio
 import preprocessing.flatten as flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
+import preprocessing.sintel_dataset_tools.file_io as sintel_io
 
 data_path = '../../datasets'
 hci_boxes = '/hci_dataset/training/boxes/'
@@ -39,7 +40,7 @@ def load_hci(num_imgs=1,
     return dataset
 
 def load_sintel(num_imgs=1, 
-                 read_dirs=[data_path+hci_boxes],
+                 read_dirs=[],
                  img_shape = (7,512,7,512,3)):
     '''
     load images and disparity maps from Sintel dataset.
@@ -64,17 +65,6 @@ def load_sintel(num_imgs=1,
     return dataset
 
 
-#if __name__ == "__main__":
-#    data_path = '../../datasets'
-#    disparity = hci_io.read_disparity(data_path + hci_boxes)
-#    print('disparity shape: \n', disparity.shape)
-#    depth = hci_io.read_depth(data_path + hci_boxes)
-#    print('depth shape: \n', depth.shape)
-#    
-#    dataset = load_dataset()
-#    for elem in dataset:
-#        print(elem.numpy().shape)
-#
 
 
 
