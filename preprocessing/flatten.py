@@ -3,6 +3,7 @@ import numpy as np
 import sys, glob, os, random
 import pandas as pd
 import matplotlib.pyplot as plt
+import time
 
 ### Flatten datasets which have LFIs as 2D image files of each SAI.
 exclude_ref = True
@@ -91,15 +92,14 @@ def flatten_hci(save_dir,read_dir,
         if j == right:
             lfi = lfi.reshape((div*img_size, div*img_size, 3), order='F')
             new_img = Image.fromarray(lfi)
-            new_img.show()
-            print(save_dir)
+            #new_img.show()
             new_img.save(save_dir+name)
-            print(f"{name} saved.")
+            print(f"{save_dir}{name} saved.")
             break
 
 def flatten_sintel(save_dir,read_dir,
                     n_sai,name='stacked.png',
-                    target_n_sai=49, frame='000',
+                    target_n_sai=49,
                     img_size=420):
     '''
     flatten sintel dataset
@@ -109,59 +109,94 @@ def flatten_sintel(save_dir,read_dir,
     '''
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    
-    div = int(np.sqrt(target_n_sai)) #divisor to get the current subview
 
-    view_x = 0 # x coordinate of the current subview
-    view_y = 0 # y coordinate
-    left, right  = select_sai_range(n_sai)
-    to_shape1=(div,img_size,div,img_size,3) #shape for images
-    to_shape2=(div,img_size,div,img_size) #shape for disparity maps 
-    lfi = np.zeros(to_shape1, dtype=np.uint8)
-    disps = np.zeros(to_shape2, dtype=np.float32) # disparity maps combined
-    print(f'left:{left}, right: {right}')
-    n_frames = len([name for name in os.listdir(read_dir + '04_04/') if os.path.isfile(name)])/2 #number of frames in the current scene
+    n_frames = len([f for f in os.scandir(read_dir + '04_04/') if f.is_file()])//2 #number of frames in the current scene
+    print(n_frames, ' frames in this scene')
 
-    for k in range(left, right+1):
-        if k % 9 == 0 and k != 0:
-            view_x += 1
-            view_y = 0
-        
-        folder = f'0{view_x}_0{view_y}/'
-        view_y += 1
-        path = read_dir + folder + frame + '.' + img_format
+    for i in range(n_frames):
+        if i < 10:
+            frame = f"00{i}"
+        else:
+            frame = f"0{i}"
+
+        view_x = 0 # x coordinate of the current subview
+        view_y = 0 # y coordinate
+        div = int(np.sqrt(target_n_sai)) #divisor to get the current subview
         left, right  = select_sai_range(n_sai)
-        sai = proc_sai(path, img_size=img_size)
-        u, v = (k-left)//div, (k-left)%div
-        lfi[u,:,v,:,:] = sai
+        to_shape1=(div,img_size,div,img_size,3) #shape for images
+        to_shape2=(div,img_size,div,img_size) #shape for disparity maps 
+        lfi = np.zeros(to_shape1, dtype=np.uint8)
+        disps = np.zeros(to_shape2, dtype=np.float32) # disparity maps combined
+        print(f'left:{left}, right: {right}')
 
-        disp = np.load(read_dir + folder + frame + '.npy') # load disparity map for the given frame of the current view 
-        disp = proc_sai(img_array=disp, img_size=img_size)
-        disps[u,:,v,:] = disp # combine disparity maps in the same way as the images
-        
-        if folder == '04_04/':
-            # simply copies disp map for the center frame into the stacked folder
-            c_disp = np.load(read_dir + folder + frame + '.npy')
-            np.save(save_dir+f'{frame}_center.npy', c_disp)
+        for k in range(left, right+1):
+            if k % 9 == 0 and k != 0:
+                view_x += 1
+                view_y = 0
+            
+            folder = f'0{view_x}_0{view_y}/'
+            view_y += 1
+            path = read_dir + folder + frame + '.' + img_format
+            left, right  = select_sai_range(n_sai)
+            sai = proc_sai(path, img_size=img_size)
+            u, v = (k-left)//div, (k-left)%div
+            lfi[u,:,v,:,:] = sai
 
-        if k == right:
-            lfi = lfi.reshape((div*img_size, div*img_size, 3), order='F')
-            new_img = Image.fromarray(lfi)
-            new_img.show()
-            print(save_dir)
-            new_img.save(save_dir+frame +'_'+name)
-            np.save(save_dir+f'{frame}_stacked.npy', disps)
+            disp = np.load(read_dir + folder + frame + '.npy') # load disparity map for the given frame of the current view 
+            disp = proc_sai(img_array=disp, img_size=img_size) # reshape
+            disps[u,:,v,:] = disp # combine disparity maps in the same way as the images
+            
+            if folder == '04_04/':
+                # reshapes disp map to (img_size, img_size) in the same way as the 2D image
+                c_disp = np.load(read_dir + folder + frame + '.npy')
+                c_disp = proc_sai(img_array=c_disp, img_size=img_size) 
+                np.save(save_dir+f'{frame}_center.npy', c_disp)
+                print(f"{save_dir}{frame}_center.npy saved.")
+
+            if k == right:
+                lfi = lfi.reshape((div*img_size, div*img_size, 3), order='F')
+                new_img = Image.fromarray(lfi)
+                #new_img.show()
+                new_img.save(save_dir+frame +'_'+name)
+                # stacked disparities
+                np.save(save_dir+f'{frame}_stacked.npy', disps)
+                print(f"{save_dir}{name} and {save_dir}{frame}_stacked.npy saved.")
         
 
 if __name__ == "__main__":
     data_path = '../../../datasets'
-    flatten_hci(save_dir=data_path + '/hci_dataset/training/boxes/stacked/', 
-                    read_dir=data_path + '/hci_dataset/training/boxes/',
-                    n_sai=80, img_size=512)
+    s = time.time()
+
+    sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
+    for d in sintel_r_dirs:
+        r_dir = d.path + '/'
+        s_dir = r_dir + 'stacked/'
+        print('read dir: ', r_dir)
+        print('save dir: ', s_dir)
+        flatten_sintel(save_dir = s_dir,
+                        read_dir = r_dir,
+                        n_sai=81, img_size=512)
+
+    hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
+    for s in hci_folder:
+        sub_dir = s.path
+        hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
+        for d in hci_r_dirs:
+            r_dir = d.path + '/'
+            s_dir = r_dir + 'stacked/'
+            print('read dir: ', r_dir)
+            print('save dir: ', s_dir)
+            flatten_hci(save_dir = s_dir, 
+                            read_dir = r_dir,
+                            n_sai = 80, img_size = 512)
+        
+    e = time.time()
+    print('time to flatten: ', s-e)
     
-    flatten_sintel(save_dir = data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1/stacked/',
-                    read_dir = data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1/',
-                    n_sai=81, frame='000', img_size=512)
+
+
+
+
 
 
 

@@ -13,12 +13,23 @@ print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1']
 
-def train(model, args, dataset, epochs=10, batch_size=1):
+#def is_test(x, _):
+#    return x % 10 == 0
+#
+#def is_train(x, y):
+
+def train(model, args, dataset=(), epochs=10, batch_size=1):
+    '''
+    train function
+    arg dataset: 2-tuple of data, first element = train data, second element = validation data 
+    '''
     # model compile
     lr = 0.0005
     loss = losses.BinaryCrossentropy()
     optimizer = Adam(learning_rate=lr)
     model.compile(optimizer=optimizer, loss=loss)
+    train_data = dataset[0]
+    val_data = dataset[1]
 
     # callbacks
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M")
@@ -30,7 +41,7 @@ def train(model, args, dataset, epochs=10, batch_size=1):
     logger = CSVLogger(f'{output}/history.csv')
 
     def step_decay(epoch):
-        # reduce learning rate by some factor based on number of epochs
+        # learning rate schedule
         factor = 1
         if epoch >= 10: factor = 0.1
         if epoch >= 15: factor = 0.01
@@ -38,8 +49,8 @@ def train(model, args, dataset, epochs=10, batch_size=1):
    
     lr_schedule = LearningRateScheduler(step_decay, verbose=1)
     # fit model
-    model.fit(dataset, batch_size=batch_size, 
-                epochs=epochs, validation_split=0.1)
+    model.fit(x=train_data, batch_size=batch_size, 
+                epochs=epochs, validation_data=val_data)
 
 
 if __name__ == "__main__":
@@ -49,6 +60,7 @@ if __name__ == "__main__":
     # load datasets
     hci = load.load_hci(img_shape=input_shape)
     sintel = load.load_sintel(img_shape=input_shape, read_dirs=sintel_folders)
+    dataset = (sintel, hci)
 
     # args settings
     parser = argparse.ArgumentParser()
@@ -61,6 +73,12 @@ if __name__ == "__main__":
 
     # start training
     train(model=model, args=args, dataset=dataset)
+
+
+
+
+
+
 
 
 

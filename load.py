@@ -54,14 +54,14 @@ def load_sintel(num_imgs=1,
         img_set.append(img)
         # read disparity maps
         disp = np.load(read_dirs[i] + '/stacked/000_center.npy')
-        print(':) ', disp.shape)
         depth = 0.01 * 1 / disp
         labels.append(depth)
 
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
-    print(img_set.shape)
+    print(':)', img_set.shape)
     dataset = tf.data.Dataset.from_tensor_slices((img_set, labels))
+    print(dataset)
     return dataset
 
 
