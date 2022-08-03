@@ -11,7 +11,6 @@ import pandas as pd
 import scipy.io as sio
 import preprocessing.flatten as flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
-import preprocessing.sintel_dataset_tools.file_io as sintel_io
 
 data_path = '../../datasets'
 hci_boxes = '/hci_dataset/training/boxes/'
@@ -33,9 +32,9 @@ def load_hci(num_imgs=1,
         # read depth map as labels
         depth = hci_io.read_depth(data_path + hci_boxes)
         labels.append(depth)
+    print(depth.shape)
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
-    print(img_set.shape)
     dataset = tf.data.Dataset.from_tensor_slices((img_set, labels))
     return dataset
 
@@ -49,12 +48,13 @@ def load_sintel(num_imgs=1,
     img_set = []
     labels = []
     for i in range(num_imgs):
-        img = Image.open(read_dirs[i] + '/stacked/stacked.png')
+        img = Image.open(read_dirs[i] + '/stacked/000_stacked.png')
         img = np.asarray(img)
         img = img.reshape(img_shape, order='F')
         img_set.append(img)
         # read disparity maps
-        disp = sintel_io.read_disp(data_path + hci_boxes)
+        disp = np.load(read_dirs[i] + '/stacked/000_center.npy')
+        print(':) ', disp.shape)
         depth = 0.01 * 1 / disp
         labels.append(depth)
 
