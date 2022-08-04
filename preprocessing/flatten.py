@@ -191,7 +191,7 @@ if __name__ == "__main__":
                             n_sai = 80, img_size = 512)
         
     e = time.time()
-    print('time to flatten: ', s-e)
+    print('time to flatten: ', e-s)
     
 
 

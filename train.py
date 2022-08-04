@@ -59,7 +59,7 @@ if __name__ == "__main__":
     model = se_net.build_model(input_shape=input_shape)
     # load datasets
     hci = load.load_hci(img_shape=input_shape)
-    sintel = load.load_sintel(img_shape=input_shape, read_dirs=sintel_folders)
+    sintel = load.load_sintel(img_shape=input_shape)
     dataset = (sintel, hci)
 
     # args settings

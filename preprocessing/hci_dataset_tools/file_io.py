@@ -76,13 +76,14 @@ def read_parameters(data_folder):
 
 
 def read_depth(data_folder, highres=False):
-    fpath = os.path.join(data_folder, "gt_depth_%s.pfm" % ("highres" if highres else "lowres"))
-    try:
-        print("depth file read success: ", fpath)
-        data = read_pfm(fpath)
-    except IOError:
-        print("Could not read depth file: %s",fpath)
-        sys.exit()
+    if highres:
+        fpath = os.path.join(data_folder, "gt_depth_highres.pfm")
+    else:
+        fpath = os.path.join(data_folder, "gt_depth_lowres.pfm")
+        
+    data = read_pfm(fpath)
+    print("depth file read success: ", fpath)
+
     return data
 
 

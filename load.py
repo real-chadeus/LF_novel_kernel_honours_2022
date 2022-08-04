@@ -13,55 +13,71 @@ import preprocessing.flatten as flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
 
 data_path = '../../datasets'
-hci_boxes = '/hci_dataset/training/boxes/'
-hci_boxes_stacked = '/hci_dataset/training/boxes/stacked/'
 
-def load_hci(num_imgs=1, 
-                 read_dirs=[data_path+hci_boxes],
-                 img_shape = (7,512,7,512,3)):
+def load_hci(img_shape = (7,512,7,512,3)):
     '''
     load images and depth maps into tensorflow dataset (from HCI) 
     '''
+    hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     labels = []
     img_set = []
-    for i in range(num_imgs):
-        img = Image.open(read_dirs[i] + '/stacked/stacked.png')
-        img = np.asarray(img)
-        img = img.reshape(img_shape, order='F')
-        img_set.append(img)
-        # read depth map as labels
-        depth = hci_io.read_depth(data_path + hci_boxes)
-        labels.append(depth)
-    print(depth.shape)
+
+    for s in hci_folder:
+        sub_dir = s.path
+        hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
+        for d in hci_r_dirs:
+            r_dir = d.path
+            if 'test' in r_dir:
+                continue
+            img = Image.open(r_dir + '/stacked/stacked.png')
+            img = np.asarray(img)
+            img = img.reshape(img_shape, order='F')
+            img_set.append(img)
+            # read depth map as labels
+            depth = hci_io.read_depth(r_dir)
+            labels.append(depth)
+
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
     dataset = tf.data.Dataset.from_tensor_slices((img_set, labels))
     return dataset
 
-def load_sintel(num_imgs=1, 
-                 read_dirs=[],
-                 img_shape = (7,512,7,512,3)):
+def load_sintel(img_shape = (7,512,7,512,3)):
     '''
     load images and disparity maps from Sintel dataset.
     Also converts disparity maps to depth maps 
     '''
+    sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
     img_set = []
     labels = []
-    for i in range(num_imgs):
-        img = Image.open(read_dirs[i] + '/stacked/000_stacked.png')
-        img = np.asarray(img)
-        img = img.reshape(img_shape, order='F')
-        img_set.append(img)
-        # read disparity maps
-        disp = np.load(read_dirs[i] + '/stacked/000_center.npy')
-        depth = 0.01 * 1 / disp
-        labels.append(depth)
+
+    for d in sintel_r_dirs:
+        r_dir = d.path + '/stacked/'
+        n_frames = len([f for f in os.scandir(r_dir) if f.is_file()])//3 #number of frames in the current scene
+        for i in range(n_frames):
+            if i < 10:
+                frame = f"00{i}"
+            else:
+                frame = f"0{i}"
+            
+            if i > 2:
+                # load only the first 3 frames of each scene
+                break
+
+            img = Image.open(r_dir + frame + '_stacked.png')
+            img = np.asarray(img)
+            img = img.reshape(img_shape, order='F')
+            img_set.append(img)
+            # read disparity maps
+            disp = np.load(r_dir + frame + '_center.npy')
+            depth = 0.01 * 1 / disp
+            labels.append(depth)
+            print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
 
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
     print(':)', img_set.shape)
     dataset = tf.data.Dataset.from_tensor_slices((img_set, labels))
-    print(dataset)
     return dataset
 
 
