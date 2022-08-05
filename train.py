@@ -21,15 +21,18 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 def train(model, args, dataset=(), epochs=10, batch_size=1):
     '''
     train function
-    arg dataset: 2-tuple of data, first element = train data, second element = validation data 
+    arg dataset: 2-tuple of data, first element = train data, second element = validation data.
+                 Each is a 2-tuple of (data, labels) 
     '''
     # model compile
     lr = 0.0005
     loss = losses.BinaryCrossentropy()
     optimizer = Adam(learning_rate=lr)
     model.compile(optimizer=optimizer, loss=loss)
-    train_data = dataset[0]
-    val_data = dataset[1]
+    train = dataset[0]
+    train_data = train[0]
+    train_labels = train[1]
+    val = dataset[1]
 
     # callbacks
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M")
@@ -49,14 +52,14 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
    
     lr_schedule = LearningRateScheduler(step_decay, verbose=1)
     # fit model
-    model.fit(x=train_data, batch_size=batch_size, 
-                epochs=epochs, validation_data=val_data)
+    model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
+                epochs=epochs, validation_data=val)
 
 
 if __name__ == "__main__":
     # define model
     input_shape = (7,512,7,512,3)
-    model = se_net.build_model(input_shape=input_shape)
+    model = se_net.build_model(input_shape=input_shape, summary=False)
     # load datasets
     hci = load.load_hci(img_shape=input_shape)
     sintel = load.load_sintel(img_shape=input_shape)
