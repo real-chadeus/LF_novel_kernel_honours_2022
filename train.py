@@ -59,12 +59,13 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
 if __name__ == "__main__":
     # define model
     input_shape = (7,512,7,512,3)
-    model = se_net.build_model(input_shape=input_shape, summary=False)
+    model = se_net.build_model(input_shape=input_shape, summary=True)
     # load datasets
     hci = load.load_hci(img_shape=input_shape)
     sintel = load.load_sintel(img_shape=input_shape)
     dataset = (sintel, hci)
 
+    tf.config.experimental.get_memory_usage 
     # args settings
     parser = argparse.ArgumentParser()
     parser.add_argument('--memo', '-m', default='')
