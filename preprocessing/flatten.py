@@ -175,7 +175,7 @@ if __name__ == "__main__":
         print('save dir: ', s_dir)
         flatten_sintel(save_dir = s_dir,
                         read_dir = r_dir,
-                        target_n_sai=25, img_size=512)
+                        target_n_sai=9, img_size=512)
 
     hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     for s in hci_folder:
@@ -188,7 +188,7 @@ if __name__ == "__main__":
             print('save dir: ', s_dir)
             flatten_hci(save_dir = s_dir, 
                             read_dir = r_dir,
-                            n_sai = 80, target_n_sai=25, img_size = 512)
+                            n_sai = 80, target_n_sai=9, img_size = 512)
         
     e = time.time()
     print('time to flatten: ', e-s)
