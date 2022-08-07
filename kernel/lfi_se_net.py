@@ -50,7 +50,7 @@ def LF_conv_block(inputs, n_filters=4,
     Simple convolution block for light field images.
     Does convolution depthwise on each SAI individually
     '''
-    n_ang = int(np.sqrt(n_sais)) # angular dimension size
+    n_ang = int(np.sqrt(n_sais))
     fmaps = [] # feature maps
     X = inputs
     for i in range(n_lfi):
@@ -58,15 +58,15 @@ def LF_conv_block(inputs, n_filters=4,
             X1 = X[i,:,:,:,:]
         else:
             X1 = X
-        X1 = tf.reshape(X1, (n_sais, img_shape[1], img_shape[3], img_shape[-1]))
-        X1 = layers.DepthwiseConv2D(filter_size, strides=1, padding='same', input_shape=X.shape[2:], activation='relu')(X1)  
+        X1 = tf.reshape(X1, (img_shape[0] * img_shape[2], img_shape[1], img_shape[3], img_shape[-1]))
+        X1 = layers.DepthwiseConv2D(filter_size, strides=1, padding='same', input_shape=X.shape[2:], activation='relu')(X1) 
         X1 = tf.reshape(X1, (n_ang, img_shape[1], n_ang, img_shape[3], img_shape[-1]))
         fmaps.append(X1)
     X = tf.squeeze(tf.stack(fmaps, axis=1))
     X = layers.Conv3D(n_filters, 1, padding='same', activation='relu')(X)
     return X
 
-def build_model(input_shape, output_shape=420, summary=True):
+def build_model(input_shape, summary=True, n_sais=49):
     '''
     build the model
     param output_shape: size of the 2D depth map. default 420
@@ -78,20 +78,21 @@ def build_model(input_shape, output_shape=420, summary=True):
     X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(X) 
     X = tf.nn.relu(X)
     
-    X = LF_conv_block(X, n_filters=3, filter_size=(3,3))
-    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape) 
-    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape)
-    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape) 
-    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape)
-    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape) 
-    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape)
+    X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
+    #X = layers.MaxPooling3D(pool_size=(1,5,1))(X)
+    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
+    X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
+    X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
+    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     X = layers.RandomFlip()(X)
     
     X = layers.Dense(512, activation='relu')(X)
     X = layers.Dense(1024, activation='relu')(X)
     X = layers.Dense(2048, activation='relu')(X)
-    #X = layers.Dense(4096, activation='relu')(X)
+    X = layers.Dense(4096, activation='relu')(X)
     X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   

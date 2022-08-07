@@ -77,7 +77,7 @@ def load_sintel(img_shape = (7,512,7,512,3)):
 
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
-    print(':)', img_set.shape)
+    #print(':)', img_set.shape)
     dataset = (img_set, labels)
     #dataset = tf.data.Dataset.from_tensor_slices(dataset)
     return dataset

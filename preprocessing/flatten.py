@@ -66,7 +66,7 @@ def flatten_hci(save_dir,read_dir,
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    left, right  = select_sai_range(n_sai)
+    left, right  = select_sai_range(n_sai=n_sai, target_n_sai=target_n_sai)
     print(f'left:{left}, right: {right}')
     i = 0
     j = 0
@@ -98,7 +98,7 @@ def flatten_hci(save_dir,read_dir,
             break
 
 def flatten_sintel(save_dir,read_dir,
-                    n_sai,name='stacked.png',
+                    n_sai=81,name='stacked.png',
                     target_n_sai=49,
                     img_size=420):
     '''
@@ -122,22 +122,22 @@ def flatten_sintel(save_dir,read_dir,
         view_x = 0 # x coordinate of the current subview
         view_y = 0 # y coordinate
         div = int(np.sqrt(target_n_sai)) #divisor to get the current subview
-        left, right  = select_sai_range(n_sai)
+        left, right  = select_sai_range(n_sai=n_sai, target_n_sai=target_n_sai)
         to_shape1=(div,img_size,div,img_size,3) #shape for images
         to_shape2=(div,img_size,div,img_size) #shape for disparity maps 
         lfi = np.zeros(to_shape1, dtype=np.uint8)
         disps = np.zeros(to_shape2, dtype=np.float32) # disparity maps combined
         print(f'left:{left}, right: {right}')
+        #print(lfi.shape)
 
         for k in range(left, right+1):
-            if k % 9 == 0 and k != 0:
+            if k % 9 == 0 and k != left:
                 view_x += 1
                 view_y = 0
             
             folder = f'0{view_x}_0{view_y}/'
             view_y += 1
             path = read_dir + folder + frame + '.' + img_format
-            left, right  = select_sai_range(n_sai)
             sai = proc_sai(path, img_size=img_size)
             u, v = (k-left)//div, (k-left)%div
             lfi[u,:,v,:,:] = sai
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         print('save dir: ', s_dir)
         flatten_sintel(save_dir = s_dir,
                         read_dir = r_dir,
-                        n_sai=81, target_n_sai=16, img_size=512)
+                        target_n_sai=25, img_size=512)
 
     hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     for s in hci_folder:
@@ -188,7 +188,7 @@ if __name__ == "__main__":
             print('save dir: ', s_dir)
             flatten_hci(save_dir = s_dir, 
                             read_dir = r_dir,
-                            n_sai = 80, target_n_sai=16, img_size = 512)
+                            n_sai = 80, target_n_sai=25, img_size = 512)
         
     e = time.time()
     print('time to flatten: ', e-s)

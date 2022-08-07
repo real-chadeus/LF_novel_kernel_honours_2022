@@ -8,15 +8,18 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 import kernel.lfi_se_net as se_net
 import tensorflow.keras.losses as losses
 import argparse
+
+physical_devices = tf.config.list_physical_devices('GPU')
+#tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
 print('tensorflow version: ', tf.__version__)
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-
+tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom=True)
 sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1']
+tf.config.set_logical_device_configuration(
+    physical_devices[0],
+    [tf.config.LogicalDeviceConfiguration(memory_limit=9000)])
 
-#def is_test(x, _):
-#    return x % 10 == 0
-#
-#def is_train(x, y):
+
 
 def train(model, args, dataset=(), epochs=10, batch_size=1):
     '''
@@ -28,11 +31,8 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     lr = 0.0005
     loss = losses.BinaryCrossentropy()
     optimizer = Adam(learning_rate=lr)
+    run_opts = tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom = True)
     model.compile(optimizer=optimizer, loss=loss)
-    train = dataset[0]
-    train_data = train[0]
-    train_labels = train[1]
-    val = dataset[1]
 
     # callbacks
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M")
@@ -52,20 +52,25 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
    
     lr_schedule = LearningRateScheduler(step_decay, verbose=1)
     # fit model
+    train = dataset[0]
+    train_data = train[0]
+    train_labels = train[1]
+    val = dataset[1]
     model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
                 epochs=epochs, validation_data=val)
+    tf.config.experimental.get_memory_usage(device=physical_devices[0])
 
 
 if __name__ == "__main__":
     # define model
-    input_shape = (7,512,7,512,3)
-    model = se_net.build_model(input_shape=input_shape, summary=True)
+    #input_shape = (7,512,7,512,3)
+    input_shape = (5,512,5,512,3)
+    model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=25)
     # load datasets
     hci = load.load_hci(img_shape=input_shape)
     sintel = load.load_sintel(img_shape=input_shape)
     dataset = (sintel, hci)
 
-    tf.config.experimental.get_memory_usage 
     # args settings
     parser = argparse.ArgumentParser()
     parser.add_argument('--memo', '-m', default='')
