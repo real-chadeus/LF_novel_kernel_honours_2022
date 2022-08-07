@@ -10,7 +10,7 @@ import tensorflow.keras.losses as losses
 import argparse
 
 physical_devices = tf.config.list_physical_devices('GPU')
-#tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
+tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
 print('tensorflow version: ', tf.__version__)
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom=True)
