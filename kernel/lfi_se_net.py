@@ -48,7 +48,7 @@ def LF_conv_block(inputs, n_filters=4,
                     n_lfi=1): 
     '''
     Simple convolution block for light field images.
-    Does convolution depthwise on each SAI individually
+    Does convolution depthwise across the SAIs
     '''
     n_ang = int(np.sqrt(n_sais))
     fmaps = [] # feature maps
@@ -91,8 +91,6 @@ def build_model(input_shape, summary=True, n_sais=49):
     
     X = layers.Dense(512, activation='relu')(X)
     X = layers.Dense(1024, activation='relu')(X)
-    #X = layers.Dense(2048, activation='relu')(X)
-    #X = layers.Dense(4096, activation='relu')(X)
     X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   

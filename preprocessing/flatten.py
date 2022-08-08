@@ -20,17 +20,29 @@ def select_sai_range(n_sai, target_n_sai=49):
     right = mid + target_n_sai//2
     return left, right
 
+def proc_maps(d_map=None, img_size=512):
+    '''
+    transforms disparity maps and depth maps
+    '''
+    print(d_map.shape)
+     
+    
 
 def proc_sai(img_path=None, img_array=None, img_size=420):
     '''
     returns subaperture image as numpy array, given the location of the image
-    arg img_array: numpy array for when we need to transform disparity maps
     '''
     if img_path:
         img = Image.open(img_path)
     else:
         img = Image.fromarray(img_array)
     w, h = img.size
+    pixels = []
+    for i in range(1, w):
+        for j in range(1, h):
+            pixVal = img.getpixel((i, j))
+            pixels.append(pixVal)
+    print('in PIL: ', pixels)
     # left, top, right, bottom
     w_offset = int((w-img_size)/2)
     h_offset = int((h-img_size)/2)
@@ -119,8 +131,6 @@ def flatten_sintel(save_dir,read_dir,
         else:
             frame = f"0{i}"
 
-        view_x = 0 # x coordinate of the current subview
-        view_y = 0 # y coordinate
         div = int(np.sqrt(target_n_sai)) #divisor to get the current subview
         left, right  = select_sai_range(n_sai=n_sai, target_n_sai=target_n_sai)
         to_shape1=(div,img_size,div,img_size,3) #shape for images
@@ -129,6 +139,8 @@ def flatten_sintel(save_dir,read_dir,
         disps = np.zeros(to_shape2, dtype=np.float32) # disparity maps combined
         print(f'left:{left}, right: {right}')
         #print(lfi.shape)
+        view_x = left // 9 # x coordinate of the current subview.
+        view_y = left % 9 # y coordinate
 
         for k in range(left, right+1):
             if k % 9 == 0 and k != left:
@@ -143,13 +155,13 @@ def flatten_sintel(save_dir,read_dir,
             lfi[u,:,v,:,:] = sai
 
             disp = np.load(read_dir + folder + frame + '.npy') # load disparity map for the given frame of the current view 
-            disp = proc_sai(img_array=disp, img_size=img_size) # reshape
+            disp = proc_maps(d_map=disp, img_size=img_size) 
             disps[u,:,v,:] = disp # combine disparity maps in the same way as the images
             
             if folder == '04_04/':
                 # reshapes disp map to (img_size, img_size) in the same way as the 2D image
                 c_disp = np.load(read_dir + folder + frame + '.npy')
-                c_disp = proc_sai(img_array=c_disp, img_size=img_size) 
+                c_disp = proc_maps(d_map=c_disp, img_size=img_size) 
                 np.save(save_dir+f'{frame}_center.npy', c_disp)
                 print(f"{save_dir}{frame}_center.npy saved.")
 

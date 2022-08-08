@@ -72,6 +72,7 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             # read disparity maps
             disp = np.load(r_dir + frame + '_center.npy')
             depth = 0.01 * 1 / disp
+            print(disp)
             labels.append(depth)
             print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
 
