@@ -29,12 +29,14 @@ def load_hci(img_shape = (7,512,7,512,3)):
             r_dir = d.path
             if 'test' in r_dir:
                 continue
+            # load + normalize
             img = Image.open(r_dir + '/stacked/stacked.png')
             img = np.asarray(img)
             img = img.reshape(img_shape, order='F')
             img_set.append(img)
             # read depth map as labels
             depth = np.load(r_dir + '/stacked/center.npy')
+            depth = depth/np.amax(depth)
             labels.append(depth)
 
     img_set = np.asarray(img_set)
@@ -61,10 +63,11 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             else:
                 frame = f"0{i}"
             
-            if i > 2:
+            if i > 10:
                 # load only the first 3 frames of each scene
                 break
 
+            # load + normalize
             img = Image.open(r_dir + frame + '_stacked.png')
             img = np.asarray(img)
             img = img.reshape(img_shape, order='F')
@@ -72,7 +75,7 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             # read disparity maps
             disp = np.load(r_dir + frame + '_center.npy')
             depth = 0.01 * 1 / disp 
-            print(disp)
+            depth = depth/np.amax(depth)
             labels.append(depth)
             print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
 

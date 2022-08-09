@@ -19,7 +19,7 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #    physical_devices[0],
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
 
-
+save_path = 'models/'
 
 def train(model, args, dataset=(), epochs=10, batch_size=1):
     '''
@@ -29,7 +29,7 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     '''
     # model compile
     lr = 0.0005
-    loss = losses.BinaryCrossentropy()
+    loss = losses.MeanSquaredError()
     optimizer = Adam(learning_rate=lr)
     run_opts = tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom = True)
     model.compile(optimizer=optimizer, loss=loss)
@@ -58,7 +58,6 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     val = dataset[1]
     model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
                 epochs=epochs, validation_data=val)
-    tf.config.experimental.get_memory_usage(device=physical_devices[0])
 
 
 if __name__ == "__main__":
@@ -81,7 +80,7 @@ if __name__ == "__main__":
     args=parser.parse_args()
 
     # start training
-    train(model=model, args=args, dataset=dataset)
+    train(model=model, args=args, dataset=dataset, epochs=10)
 
 
 
