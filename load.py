@@ -14,7 +14,7 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 
 data_path = '../../datasets'
 
-def load_hci(img_shape = (7,512,7,512,3)):
+def load_hci(img_shape = (7,512,7,512,3), predict=False):
     '''
     load images and depth maps into tensorflow dataset (from HCI) 
     '''
@@ -27,7 +27,7 @@ def load_hci(img_shape = (7,512,7,512,3)):
         hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
         for d in hci_r_dirs:
             r_dir = d.path
-            if 'test' in r_dir:
+            if 'test' in r_dir and predict == False:
                 continue
             # load + normalize
             img = Image.open(r_dir + '/stacked/stacked.png')
@@ -35,10 +35,14 @@ def load_hci(img_shape = (7,512,7,512,3)):
             img = img.reshape(img_shape, order='F')
             img_set.append(img)
             # read depth map as labels
-            depth = np.load(r_dir + '/stacked/center.npy')
-            depth = depth/np.amax(depth)
-            labels.append(depth)
+            if predict == False:
+                depth = np.load(r_dir + '/stacked/center.npy')
+                depth = depth/np.amax(depth)
+                labels.append(depth)
 
+    if predict:
+        dataset = img_set
+        return dataset
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
     dataset = (img_set, labels)

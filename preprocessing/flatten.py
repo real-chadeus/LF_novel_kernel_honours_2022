@@ -36,7 +36,7 @@ def proc_maps(d_map=None, img_size=436):
     cropped = d_map[x0:x1, y0:y1]
 
     return cropped
-    
+
 
 def proc_sai(img_path=None, img_size=512):
     '''

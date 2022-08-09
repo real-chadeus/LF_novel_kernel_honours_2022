@@ -58,6 +58,7 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     val = dataset[1]
     model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
                 epochs=epochs, validation_data=val)
+    model.save(save_path + 'model0')
 
 
 if __name__ == "__main__":
