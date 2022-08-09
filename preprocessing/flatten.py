@@ -4,6 +4,7 @@ import sys, glob, os, random
 import pandas as pd
 import matplotlib.pyplot as plt
 import time
+import preprocessing.hci_dataset_tools.file_io as hci_io
 
 ### Flatten datasets which have LFIs as 2D image files of each SAI.
 exclude_ref = True
@@ -20,29 +21,30 @@ def select_sai_range(n_sai, target_n_sai=49):
     right = mid + target_n_sai//2
     return left, right
 
-def proc_maps(d_map=None, img_size=512):
+def proc_maps(d_map=None, img_size=436):
     '''
-    transforms disparity maps and depth maps
+    transforms disparity maps and depth maps to the given size
     '''
-    print(d_map.shape)
-     
+    d_map = np.swapaxes(d_map, axis1=0, axis2=1)
+    w, h = d_map.shape
+    w_offset = int((w-img_size)/2)
+    h_offset = int((h-img_size)/2)
+    l,r = w_offset, w_offset+img_size
+    tp,b = h_offset, h_offset+img_size
+    window = (l,tp,r,b)
+    x0, y0, x1, y1 = map(int, map(round, window))
+    cropped = d_map[x0:x1, y0:y1]
+
+    return cropped
     
 
-def proc_sai(img_path=None, img_array=None, img_size=420):
+def proc_sai(img_path=None, img_size=512):
     '''
     returns subaperture image as numpy array, given the location of the image
     '''
-    if img_path:
-        img = Image.open(img_path)
-    else:
-        img = Image.fromarray(img_array)
+    img = Image.open(img_path)
     w, h = img.size
-    pixels = []
-    for i in range(1, w):
-        for j in range(1, h):
-            pixVal = img.getpixel((i, j))
-            pixels.append(pixVal)
-    print('in PIL: ', pixels)
+
     # left, top, right, bottom
     w_offset = int((w-img_size)/2)
     h_offset = int((h-img_size)/2)
@@ -50,24 +52,25 @@ def proc_sai(img_path=None, img_array=None, img_size=420):
     tp,b = h_offset, h_offset+img_size
     window = (l,tp,r,b)
     new_img = img.crop(window)
+
     #split img into red green blue components
-    if img_path:
-        r, g, b = img.split()
-        r = r.crop(window)
-        g = g.crop(window)
-        b = b.crop(window)
-        r = np.asarray(r)
-        g = np.asarray(g)
-        b = np.asarray(b)
-        new_img = np.asarray([r,g,b])
-        new_img = np.moveaxis(new_img, 0, -1)
+    r, g, b = img.split()
+    r = r.crop(window)
+    g = g.crop(window)
+    b = b.crop(window)
+    r = np.asarray(r)
+    g = np.asarray(g)
+    b = np.asarray(b)
+    new_img = np.asarray([r,g,b])
+    new_img = np.moveaxis(new_img, 0, -1)
+
     return np.asarray(new_img)
 
 
 def flatten_hci(save_dir,read_dir,
                     n_sai,name='stacked.png',
                     target_n_sai=49,
-                    img_size = 420):
+                    img_size = 512):
     '''
     flatten hci dataset SAIs into single LFI
     '''
@@ -102,9 +105,14 @@ def flatten_hci(save_dir,read_dir,
 
         j += 1
         if j == right:
+            if 'test' not in r_dir: 
+                depth = hci_io.read_depth(r_dir)
+                print(depth)
+                depth = proc_maps(depth, img_size=img_size)
+                np.save(save_dir + 'center.npy', depth)
+                print(f"{save_dir}center.npy saved.")
             lfi = lfi.reshape((div*img_size, div*img_size, 3), order='F')
             new_img = Image.fromarray(lfi)
-            #new_img.show()
             new_img.save(save_dir+name)
             print(f"{save_dir}{name} saved.")
             break
@@ -177,7 +185,7 @@ def flatten_sintel(save_dir,read_dir,
 
 if __name__ == "__main__":
     data_path = '../../../datasets'
-    s = time.time()
+    start = time.time()
 
     sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
     for d in sintel_r_dirs:
@@ -187,7 +195,7 @@ if __name__ == "__main__":
         print('save dir: ', s_dir)
         flatten_sintel(save_dir = s_dir,
                         read_dir = r_dir,
-                        target_n_sai=9, img_size=512)
+                        target_n_sai=9, img_size=436)
 
     hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     for s in hci_folder:
@@ -200,10 +208,10 @@ if __name__ == "__main__":
             print('save dir: ', s_dir)
             flatten_hci(save_dir = s_dir, 
                             read_dir = r_dir,
-                            n_sai = 80, target_n_sai=9, img_size = 512)
+                            n_sai = 80, target_n_sai=9, img_size = 436)
         
-    e = time.time()
-    print('time to flatten: ', e-s)
+    end = time.time()
+    print('time to flatten: ', end-start)
     
 
 

@@ -64,7 +64,7 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
 if __name__ == "__main__":
     # define model
     #input_shape = (7,512,7,512,3)
-    input_shape = (3,512,3,512,3)
+    input_shape = (3,436,3,436,3)
     model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
     # load datasets
     hci = load.load_hci(img_shape=input_shape)

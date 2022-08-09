@@ -34,7 +34,7 @@ def load_hci(img_shape = (7,512,7,512,3)):
             img = img.reshape(img_shape, order='F')
             img_set.append(img)
             # read depth map as labels
-            depth = hci_io.read_depth(r_dir)
+            depth = np.load(r_dir + '/stacked/center.npy')
             labels.append(depth)
 
     img_set = np.asarray(img_set)
@@ -71,7 +71,7 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             img_set.append(img)
             # read disparity maps
             disp = np.load(r_dir + frame + '_center.npy')
-            depth = 0.01 * 1 / disp
+            depth = 0.01 * 1 / disp 
             print(disp)
             labels.append(depth)
             print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
