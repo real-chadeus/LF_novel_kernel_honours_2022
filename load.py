@@ -67,7 +67,7 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             else:
                 frame = f"0{i}"
             
-            if i > 10:
+            if i > 25:
                 # load only the first 3 frames of each scene
                 break
 
@@ -81,7 +81,7 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             depth = 0.01 * 1 / disp 
             depth = depth/np.amax(depth)
             labels.append(depth)
-            print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
+            #print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
 
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)

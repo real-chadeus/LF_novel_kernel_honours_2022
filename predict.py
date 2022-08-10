@@ -13,12 +13,12 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 
 load_path = 'models/'
 
-
 input_shape = (3,436,3,436,3)
 #model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
 hci = load.load_hci(img_shape=input_shape, predict=True)
 model = keras.models.load_model(load_path + 'model0')
 predictions = model.predict(hci, batch_size=1, workers=4)
+print(predictions)
 
 
 

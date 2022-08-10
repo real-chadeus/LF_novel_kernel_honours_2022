@@ -7,6 +7,7 @@ import preprocessing.flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import kernel.lfi_se_net as se_net
 import tensorflow.keras.losses as losses
+from tqdm.keras import TqdmCallback
 import argparse
 
 physical_devices = tf.config.list_physical_devices('GPU')
@@ -32,7 +33,11 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     loss = losses.MeanSquaredError()
     optimizer = Adam(learning_rate=lr)
     run_opts = tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom = True)
-    model.compile(optimizer=optimizer, loss=loss)
+    model.compile(optimizer=optimizer, loss=loss, 
+                   metrics=[tf.keras.metrics.MeanAbsoluteError(),
+                            tf.keras.metrics.MeanSquaredError(),
+                            tf.keras.metrics.MeanAbsolutePercentageError()
+                            ])
 
     # callbacks
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M")
@@ -41,7 +46,7 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     #checkpoint
     cp = ModelCheckpoint(filepath = f'{output}/weights.h5', monitor='val_loss',
             save_best_only=True, save_weights_only=True, verbose=0, mode='auto')
-    logger = CSVLogger(f'{output}/history.csv')
+    logger = CSVLogger(f'{save_path}history.csv')
 
     def step_decay(epoch):
         # learning rate schedule
@@ -57,8 +62,8 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     train_labels = train[1]
     val = dataset[1]
     model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
-                epochs=epochs, validation_data=val)
-    model.save(save_path + 'model0')
+                epochs=epochs, validation_data=val, verbose=0, callbacks=[TqdmCallback(verbose=1)])
+    model.save(save_path + 'model1')
 
 
 if __name__ == "__main__":
@@ -67,6 +72,7 @@ if __name__ == "__main__":
     input_shape = (3,436,3,436,3)
     model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
     # load datasets
+    print('loading dataset...')
     hci = load.load_hci(img_shape=input_shape)
     sintel = load.load_sintel(img_shape=input_shape)
     dataset = (sintel, hci)

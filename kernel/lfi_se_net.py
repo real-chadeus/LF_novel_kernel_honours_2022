@@ -91,6 +91,7 @@ def build_model(input_shape, summary=True, n_sais=49):
     
     X = layers.Dense(512, activation='relu')(X)
     X = layers.Dense(1024, activation='relu')(X)
+    X = layers.Dense(128, activation='relu')(X)
     X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   
