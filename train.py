@@ -19,10 +19,9 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #tf.config.set_logical_device_configuration(
 #    physical_devices[0],
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
-
 save_path = 'models/'
 
-def train(model, args, dataset=(), epochs=10, batch_size=1):
+def train(model, args, dataset=(), epochs=10, batch_size=1, model_name='model1'):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -46,7 +45,7 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     #checkpoint
     cp = ModelCheckpoint(filepath = f'{output}/weights.h5', monitor='val_loss',
             save_best_only=True, save_weights_only=True, verbose=0, mode='auto')
-    logger = CSVLogger(f'{save_path}history.csv')
+    logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
 
     def step_decay(epoch):
         # learning rate schedule
@@ -62,8 +61,9 @@ def train(model, args, dataset=(), epochs=10, batch_size=1):
     train_labels = train[1]
     val = dataset[1]
     model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
-                epochs=epochs, validation_data=val, verbose=0, callbacks=[TqdmCallback(verbose=1)])
-    model.save(save_path + 'model1')
+                epochs=epochs, validation_data=val, verbose=0, 
+                callbacks=[TqdmCallback(verbose=2), logger])
+    model.save(save_path + model_name)
 
 
 if __name__ == "__main__":

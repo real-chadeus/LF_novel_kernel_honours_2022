@@ -16,7 +16,7 @@ class LFSEBlock(tf.keras.Model):
         super(LFSEBlock, self).__init__(name='light_field_se_block')
     
     def call(self, input_tensor, training=True):
-        r = 4 # reductionr ratio
+        r = 4 # reduction ratio
         C = self.n_filters
         shape = tf.shape(input_tensor) 
         height = shape[1]
@@ -79,19 +79,21 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = tf.nn.relu(X)
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
+
     #X = layers.MaxPooling3D(pool_size=(1,5,1))(X)
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
     #X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     #X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+
     X = LFSEBlock(n_filters=12, filter_size=(3,3))(X)
-    X = layers.RandomFlip()(X)
-    
-    X = layers.Dense(512, activation='relu')(X)
+    #X = layers.RandomFlip()(X)
+
     X = layers.Dense(1024, activation='relu')(X)
-    X = layers.Dense(128, activation='relu')(X)
+    X = layers.Dense(1024, activation='relu')(X)
     X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   

@@ -10,6 +10,7 @@ import scipy.io as sio
 import kernel.lfi_se_net as se_net
 import preprocessing.flatten as flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
+import load
 
 load_path = 'models/'
 
