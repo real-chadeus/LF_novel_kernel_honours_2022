@@ -68,7 +68,6 @@ def load_sintel(img_shape = (7,512,7,512,3)):
                 frame = f"0{i}"
             
             if i > 25:
-                # load only the first 3 frames of each scene
                 break
 
             # load + normalize
@@ -82,12 +81,13 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             depth = depth/np.amax(depth)
             labels.append(depth)
             #print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
+            #if i % 20 == 0:
+            #    pr = Image.fromarray(img[1,:,1,:])
+            #    pr.show()
 
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
-    #print(':)', img_set.shape)
     dataset = (img_set, labels)
-    #dataset = tf.data.Dataset.from_tensor_slices(dataset)
     return dataset
 
 

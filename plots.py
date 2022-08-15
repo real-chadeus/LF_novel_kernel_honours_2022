@@ -37,5 +37,23 @@ def plot_mae(model_name='model1'):
 
 
 
+def plot_loss(model_name='model1'):
+    load_dir = save_dir + model_name + '/'
+    f = pd.read_csv(load_dir + 'history.csv')
+    mse = f['val_loss']
+    plt.plot(mse)
+    plt.ylabel('validation loss')
+    plt.xlabel('epoch')
+    plt.show()
+
+    mse = f['loss']
+    plt.plot(mse)
+    plt.ylabel('training mean loss')
+    plt.xlabel('epoch')
+    plt.show()
+
+
+
+
 
 

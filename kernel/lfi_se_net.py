@@ -11,18 +11,21 @@ class LFSEBlock(tf.keras.Model):
     Comes after convolution and pooling blocks
     '''
     def __init__(self, n_filters, filter_size):
+        super(LFSEBlock, self).__init__(name='light_field_se_block')
         self.n_filters = n_filters
         self.filter_size = filter_size
-        super(LFSEBlock, self).__init__(name='light_field_se_block')
+        self.W1 = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters, n_filters//4)), dtype=tf.float32))
+        self.W2 = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters//4, n_filters)), dtype=tf.float32))
     
     def call(self, input_tensor, training=True):
-        r = 4 # reduction ratio
-        C = self.n_filters
         shape = tf.shape(input_tensor) 
         height = shape[1]
         width = shape[3]
-        W1 = tf.cast(tf.convert_to_tensor(np.ones((C, C//r))), dtype=tf.float32) 
-        W2 = tf.cast(tf.convert_to_tensor(np.ones((C//r, C))), dtype=tf.float32)
+        #C = self.n_filters
+        #W1 = tf.cast(tf.convert_to_tensor(np.random.randn(C, C//r)), dtype=tf.float32) 
+        #W2 = tf.cast(tf.convert_to_tensor(np.random.randn(C//r, C)), dtype=tf.float32)
+        W1 = self.W1
+        W2 = self.W2
         z = []
         f_maps = [] # original feature maps
         s = []
@@ -80,7 +83,7 @@ def build_model(input_shape, summary=True, n_sais=49):
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
 
-    #X = layers.MaxPooling3D(pool_size=(1,5,1))(X)
+    #X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
 
@@ -94,6 +97,7 @@ def build_model(input_shape, summary=True, n_sais=49):
 
     X = layers.Dense(1024, activation='relu')(X)
     X = layers.Dense(1024, activation='relu')(X)
+
     X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   

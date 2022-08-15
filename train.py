@@ -27,11 +27,14 @@ def train(model, args, dataset=(), epochs=10, batch_size=1, model_name='model1')
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
                  Each is a 2-tuple of (data, labels) 
     '''
-    # model compile
+    if not os.path.exists(save_dir + model_name):
+        os.makedirs(save_dir + model_name)
+
     lr = 0.0005
     loss = losses.MeanSquaredError()
     optimizer = Adam(learning_rate=lr)
     run_opts = tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom = True)
+    # model compile
     model.compile(optimizer=optimizer, loss=loss, 
                    metrics=[tf.keras.metrics.MeanAbsoluteError(),
                             tf.keras.metrics.MeanSquaredError(),
@@ -87,7 +90,7 @@ if __name__ == "__main__":
     args=parser.parse_args()
 
     # start training
-    train(model=model, args=args, dataset=dataset, epochs=10)
+    train(model=model, args=args, dataset=dataset, epochs=10, model_name='model2')
 
 
 
