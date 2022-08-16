@@ -80,6 +80,8 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             depth = 0.01 * 1 / disp 
             depth = depth/np.amax(depth)
             labels.append(depth)
+            
+            # diagnostics
             #print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
             #if i % 20 == 0:
             #    pr = Image.fromarray(img[1,:,1,:])

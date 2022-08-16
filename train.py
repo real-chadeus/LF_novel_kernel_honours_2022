@@ -8,6 +8,7 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 import kernel.lfi_se_net as se_net
 import tensorflow.keras.losses as losses
 from tqdm.keras import TqdmCallback
+import os
 import argparse
 
 physical_devices = tf.config.list_physical_devices('GPU')
@@ -27,8 +28,8 @@ def train(model, args, dataset=(), epochs=10, batch_size=1, model_name='model1')
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
                  Each is a 2-tuple of (data, labels) 
     '''
-    if not os.path.exists(save_dir + model_name):
-        os.makedirs(save_dir + model_name)
+    if not os.path.exists(save_path + model_name):
+        os.makedirs(save_path + model_name)
 
     lr = 0.0005
     loss = losses.MeanSquaredError()

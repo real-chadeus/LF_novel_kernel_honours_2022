@@ -83,12 +83,14 @@ def build_model(input_shape, summary=True, n_sais=49):
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
 
-    #X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
+    X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
 
+    X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+
     #X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     #X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
 
@@ -97,6 +99,8 @@ def build_model(input_shape, summary=True, n_sais=49):
 
     X = layers.Dense(1024, activation='relu')(X)
     X = layers.Dense(1024, activation='relu')(X)
+    X = tf.expand_dims(X, axis=0)
+    X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)
 
     X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
     
