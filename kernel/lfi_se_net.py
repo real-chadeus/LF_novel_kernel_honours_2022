@@ -74,6 +74,7 @@ def build_model(input_shape, summary=True, n_sais=49):
     build the model
     param output_shape: size of the 2D depth map. default 420
     '''
+
     # initial input and convolution + layer normalization
     inputs = layers.Input(shape=input_shape, name='lfse_model_input')
     X = layers.Dense(3)(inputs)
@@ -91,13 +92,15 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
 
-    #X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
-    #X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
+    X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
 
-    X = LFSEBlock(n_filters=12, filter_size=(3,3))(X)
+    X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     #X = layers.RandomFlip()(X)
 
-    X = layers.Dense(1024, activation='relu')(X)
+    X = layers.Dense(2048, activation='relu')(X)
+    X = layers.Dense(4096, activation='relu')(X)
+    X = layers.Dense(2048, activation='relu')(X)
     X = layers.Dense(1024, activation='relu')(X)
     X = tf.expand_dims(X, axis=0)
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)

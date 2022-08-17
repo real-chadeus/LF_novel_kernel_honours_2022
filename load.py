@@ -14,6 +14,36 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 
 data_path = '../../datasets'
 
+def augment(dataset):
+    '''
+    augment function
+    returns: tuple (images, depth maps)
+    arg dataset: tuple (image, depth map)
+    '''
+    # img of shape (x,y,x,y,3) where x is the angular dim and y is the spatial dim
+    # flips and rotates 90 degrees
+    img = dataset[0]
+    depth = dataset[1]
+
+    # flip
+    new_img1 = np.flip(img, axis=1)
+    new_depth1 = np.flip(depth, axis=0)
+    new_img2 = np.flip(img, axis=3)
+    new_depth2 = np.flip(depth, axis=1)
+    new_img3 = np.flip(img, axis=(1,3))
+    new_depth3 = np.flip(depth, axis=(0,1))
+    
+    # rotate
+    new_img4 = np.rot90(img, k=1, axes=(1,3))
+    new_depth4 = np.rot90(depth, k=0, axes=(0,1))
+    new_img5 = np.rot90(img, k=1, axes=(3,1))
+    new_depth5 = np.rot90(depth, k=0, axes=(1,0))
+   
+    imgs = [new_img1, new_img2, new_img3, new_img4, new_img5] 
+    depths = [new_depth1, new_depth2, new_depth3, new_depth4, new_depth5]
+    
+    return imgs, depths
+
 def load_hci(img_shape = (7,512,7,512,3), predict=False):
     '''
     load images and depth maps into tensorflow dataset (from HCI) 
@@ -49,7 +79,7 @@ def load_hci(img_shape = (7,512,7,512,3), predict=False):
     #dataset = tf.data.Dataset.from_tensor_slices(dataset)
     return dataset
 
-def load_sintel(img_shape = (7,512,7,512,3)):
+def load_sintel(img_shape = (7,512,7,512,3), do_augment=True):
     '''
     load images and disparity maps from Sintel dataset.
     Also converts disparity maps to depth maps 
@@ -67,18 +97,28 @@ def load_sintel(img_shape = (7,512,7,512,3)):
             else:
                 frame = f"0{i}"
             
-            if i > 25:
+            if i > 2:
                 break
 
-            # load + normalize
+            # load images
             img = Image.open(r_dir + frame + '_stacked.png')
             img = np.asarray(img)
             img = img.reshape(img_shape, order='F')
-            img_set.append(img)
-            # read disparity maps
+
+            # read + normalize disparity maps
             disp = np.load(r_dir + frame + '_center.npy')
             depth = 0.01 * 1 / disp 
             depth = depth/np.amax(depth)
+            
+            if do_augment:
+                dataset = (img, depth)
+                imgs, depths = augment(dataset)
+                for img in imgs:
+                    img_set.append(img)
+                for depth in depths:
+                    labels.append(depth)
+
+            img_set.append(img)
             labels.append(depth)
             
             # diagnostics
@@ -89,10 +129,13 @@ def load_sintel(img_shape = (7,512,7,512,3)):
 
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
+    print('img_set shape', img_set.shape)
+    print('labels shape', labels.shape)
     dataset = (img_set, labels)
     return dataset
 
-
+     
+    
 
 
 

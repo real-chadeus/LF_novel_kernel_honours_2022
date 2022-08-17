@@ -17,9 +17,9 @@ hci = load.load_hci(img_shape=input_shape)
 model = keras.models.load_model(load_path + 'model0')
 metrics = model.evaluate(x=hci[0], y=hci[1], batch_size=1, workers=4)
 hist = model.history
-plots.plot_mse('model1')
-plots.plot_mae('model1')
-plots.plot_loss('model1')
+plots.plot_mse('model2')
+plots.plot_mae('model2')
+plots.plot_loss('model2')
 print(metrics)
 
 

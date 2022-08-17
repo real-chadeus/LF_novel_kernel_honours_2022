@@ -22,7 +22,7 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
 save_path = 'models/'
 
-def train(model, args, dataset=(), epochs=10, batch_size=1, model_name='model1'):
+def train(model, dataset=(), epochs=10, batch_size=1, model_name='model1'):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -42,13 +42,10 @@ def train(model, args, dataset=(), epochs=10, batch_size=1, model_name='model1')
                             tf.keras.metrics.MeanAbsolutePercentageError()
                             ])
 
-    # callbacks
-    now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M")
-    output = pathlib.Path(f'../output/{now}_{args.model_name}_fl{args.frame_length}_{args.memo}')
-    output.mkdir(exist_ok=True, parents=True)
-    #checkpoint
-    cp = ModelCheckpoint(filepath = f'{output}/weights.h5', monitor='val_loss',
+    # checkpoint
+    checkpoint = ModelCheckpoint(filepath = f'{save_path}/weights.h5', monitor='val_loss',
             save_best_only=True, save_weights_only=True, verbose=0, mode='auto')
+    # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
 
     def step_decay(epoch):
@@ -78,20 +75,11 @@ if __name__ == "__main__":
     # load datasets
     print('loading dataset...')
     hci = load.load_hci(img_shape=input_shape)
-    sintel = load.load_sintel(img_shape=input_shape)
+    sintel = load.load_sintel(img_shape=input_shape, do_augment=True)
     dataset = (sintel, hci)
 
-    # args settings
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--memo', '-m', default='')
-    parser.add_argument('--frame_length', '-fl', type=int, default=49)
-    parser.add_argument('--model_name', default='STCLSTM')
-    parser.add_argument('--train_list', default='../patch_data_fl5/train_data.txt')
-    parser.add_argument('--valid_list', default='../patch_data_fl5/validation_data.txt')
-    args=parser.parse_args()
-
     # start training
-    train(model=model, args=args, dataset=dataset, epochs=10, model_name='model2')
+    train(model=model, dataset=dataset, epochs=10, model_name='model2')
 
 
 
