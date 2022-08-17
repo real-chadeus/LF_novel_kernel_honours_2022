@@ -22,11 +22,22 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
 save_path = 'models/'
 
-def train(model, dataset=(), epochs=10, batch_size=1, model_name='model1'):
+
+def step_decay(epoch):
+    # learning rate schedule
+    factor = 1
+    if epoch >= 10: factor = 0.1
+    if epoch >= 15: factor = 0.01
+    return lr * factor
+
+
+def train(model, input_shape=(), dataset=(), 
+            epochs=10, batch_size=1, model_name='model1', use_gen=True):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
                  Each is a 2-tuple of (data, labels) 
+    arg use_gen: use generators to reduce memory usage
     '''
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
@@ -48,22 +59,31 @@ def train(model, dataset=(), epochs=10, batch_size=1, model_name='model1'):
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
 
-    def step_decay(epoch):
-        # learning rate schedule
-        factor = 1
-        if epoch >= 10: factor = 0.1
-        if epoch >= 15: factor = 0.01
-        return lr * factor
    
     lr_schedule = LearningRateScheduler(step_decay, verbose=1)
-    # fit model
+    # prepare dataset
     train = dataset[0]
     train_data = train[0]
     train_labels = train[1]
     val = dataset[1]
-    model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
-                epochs=epochs, validation_data=val, verbose=0, 
-                callbacks=[TqdmCallback(verbose=2), logger])
+
+    # train model
+    if use_gen:
+        def data_gen(): 
+            for i in range(train_data.shape[0]):
+                yield train_data[i], train_labels[i]  
+        training = tf.data.Dataset.from_generator(data_gen,
+              output_signature=(tf.TensorSpec(shape=(1,) + input_shape, dtype=tf.int8),
+                                tf.TensorSpec(shape=(input_shape[1], input_shape[3]), dtype=tf.float32)))
+
+        model.fit(x=training,batch_size=batch_size, 
+                    epochs=epochs, validation_data=val, 
+                    callbacks=[TqdmCallback(verbose=1), logger])
+    else:
+        model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
+                    epochs=epochs, validation_data=val,
+                    callbacks=[TqdmCallback(verbose=2), logger])
+
     model.save(save_path + model_name)
 
 
@@ -75,11 +95,12 @@ if __name__ == "__main__":
     # load datasets
     print('loading dataset...')
     hci = load.load_hci(img_shape=input_shape)
-    sintel = load.load_sintel(img_shape=input_shape, do_augment=True)
+    sintel = load.load_sintel(img_shape=input_shape, do_augment=False, use_tf_ds=True)
     dataset = (sintel, hci)
 
     # start training
-    train(model=model, dataset=dataset, epochs=10, model_name='model2')
+    train(model=model, input_shape=input_shape, batch_size=8, 
+            dataset=dataset, epochs=10, model_name='model2', use_gen=True)
 
 
 

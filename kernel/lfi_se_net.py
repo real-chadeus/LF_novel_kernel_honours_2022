@@ -76,9 +76,8 @@ def build_model(input_shape, summary=True, n_sais=49):
     '''
 
     # initial input and convolution + layer normalization
-    inputs = layers.Input(shape=input_shape, name='lfse_model_input')
-    X = layers.Dense(3)(inputs)
-    X = layers.LayerNormalization()(X)
+    inputs = keras.Input(shape=input_shape, name='lfse_model_input')
+    X = layers.LayerNormalization()(inputs)
     X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(X) 
     X = tf.nn.relu(X)
     
