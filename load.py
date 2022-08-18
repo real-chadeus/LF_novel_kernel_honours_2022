@@ -96,16 +96,11 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True):
                 frame = f"00{i}"
             else:
                 frame = f"0{i}"
-            
-            if i > 35:
-                break
 
             # load images
             img = Image.open(r_dir + frame + '_stacked.png')
             img = np.asarray(img)
             img = img.reshape(img_shape, order='F')
-            if use_tf_ds:
-                img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
 
             # read + normalize disparity maps
             disp = np.load(r_dir + frame + '_center.npy')
@@ -121,6 +116,9 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True):
                     img_set.append(im)
                 for depth in depths:
                     labels.append(depth)
+
+            if use_tf_ds:
+                img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
 
             img_set.append(img)
             labels.append(depth)

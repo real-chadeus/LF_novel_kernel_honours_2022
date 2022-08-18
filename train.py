@@ -2,6 +2,7 @@ import pathlib, datetime
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
+import tensorflow_addons as tfa
 import load
 import preprocessing.flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
@@ -58,6 +59,7 @@ def train(model, input_shape=(), dataset=(),
             save_best_only=True, save_weights_only=True, verbose=0, mode='auto')
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
+    tqdm_callback = tfa.callbacks.TQDMProgressBar()
 
    
     lr_schedule = LearningRateScheduler(step_decay, verbose=1)
@@ -78,7 +80,7 @@ def train(model, input_shape=(), dataset=(),
 
         model.fit(x=training,batch_size=batch_size, 
                     epochs=epochs, validation_data=val, 
-                    callbacks=[TqdmCallback(verbose=1), logger])
+                    callbacks=[TqdmCallback(verbose=2), logger])
     else:
         model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
                     epochs=epochs, validation_data=val,
