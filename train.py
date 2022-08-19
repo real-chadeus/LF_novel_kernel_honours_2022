@@ -8,6 +8,7 @@ import preprocessing.flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import kernel.lfi_se_net as se_net
 import tensorflow.keras.losses as losses
+import numpy as np
 from tqdm.keras import TqdmCallback
 import os
 import argparse
@@ -96,9 +97,15 @@ if __name__ == "__main__":
     model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
     # load datasets
     print('loading dataset...')
-    hci = load.load_hci(img_shape=input_shape)
+    hci = load.load_hci(img_shape=input_shape, use_tf_ds=True)
     sintel = load.load_sintel(img_shape=input_shape, do_augment=False, use_tf_ds=True)
-    dataset = (sintel, hci)
+    # prepare datasets for training and validation
+    hci_train = (hci[0][:hci[0].shape[0]//2], hci[1][:hci[1].shape[0]//2])
+    hci_val = (hci[0][hci[0].shape[0]//2:], hci[1][hci[1].shape[0]//2:])
+    train_set = (np.concatenate((hci_train[0], sintel[0])), np.concatenate((hci_train[1], sintel[1])))
+    val_set = hci_val
+    
+    dataset = (train_set, val_set)
 
     # start training
     train(model=model, input_shape=input_shape, batch_size=8, 

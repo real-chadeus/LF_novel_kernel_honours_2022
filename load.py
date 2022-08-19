@@ -44,7 +44,7 @@ def augment(dataset):
     
     return imgs, depths
 
-def load_hci(img_shape = (7,512,7,512,3), predict=False):
+def load_hci(img_shape = (7,512,7,512,3), predict=False, use_tf_ds=False):
     '''
     load images and depth maps into tensorflow dataset (from HCI) 
     '''
@@ -63,12 +63,15 @@ def load_hci(img_shape = (7,512,7,512,3), predict=False):
             img = Image.open(r_dir + '/stacked/stacked.png')
             img = np.asarray(img)
             img = img.reshape(img_shape, order='F')
-            img_set.append(img)
             # read depth map as labels
             if predict == False:
                 depth = np.load(r_dir + '/stacked/center.npy')
                 depth = depth/np.amax(depth)
                 labels.append(depth)
+
+            if use_tf_ds:
+                img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
+            img_set.append(img)
 
     if predict:
         dataset = img_set
@@ -96,7 +99,7 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True):
                 frame = f"00{i}"
             else:
                 frame = f"0{i}"
-
+            
             # load images
             img = Image.open(r_dir + frame + '_stacked.png')
             img = np.asarray(img)

@@ -19,7 +19,6 @@ input_shape = (3,436,3,436,3)
 hci = load.load_hci(img_shape=input_shape, predict=True)
 model = keras.models.load_model(load_path + 'model0')
 predictions = model.predict(hci, batch_size=1, workers=4)
-print(predictions)
 
 
 

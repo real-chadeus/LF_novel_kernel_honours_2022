@@ -97,10 +97,10 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     #X = layers.RandomFlip()(X)
 
-    X = layers.Dense(2048, activation='relu')(X)
-    X = layers.Dense(4096, activation='relu')(X)
-    X = layers.Dense(2048, activation='relu')(X)
-    X = layers.Dense(1024, activation='relu')(X)
+    X = layers.Dense(2048, activation='sigmoid')(X)
+    X = layers.Dense(4096, activation='sigmoid')(X)
+    X = layers.Dense(2048, activation='sigmoid')(X)
+    X = layers.Dense(4096, activation='sigmoid')(X)
     X = tf.expand_dims(X, axis=0)
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)
 
