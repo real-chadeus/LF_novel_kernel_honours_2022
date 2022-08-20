@@ -12,6 +12,7 @@ import numpy as np
 from tqdm.keras import TqdmCallback
 import os
 import argparse
+import custom_metrics
 
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
@@ -44,15 +45,13 @@ def train(model, input_shape=(), dataset=(),
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.0005
+    lr = 0.00001
     loss = losses.MeanSquaredError()
     optimizer = Adam(learning_rate=lr)
-    run_opts = tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom = True)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
-                   metrics=[tf.keras.metrics.MeanAbsoluteError(),
-                            tf.keras.metrics.MeanSquaredError(),
-                            tf.keras.metrics.MeanAbsolutePercentageError()
+                   metrics=[tf.keras.metrics.MeanSquaredError(),
+                            custom_metrics.BadPix()
                             ])
 
     # checkpoint
@@ -97,11 +96,12 @@ if __name__ == "__main__":
     model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
     # load datasets
     print('loading dataset...')
-    hci = load.load_hci(img_shape=input_shape, use_tf_ds=True)
+    hci = load.load_hci(img_shape=input_shape, do_augment=True, use_tf_ds=True)
     sintel = load.load_sintel(img_shape=input_shape, do_augment=False, use_tf_ds=True)
     # prepare datasets for training and validation
-    hci_train = (hci[0][:hci[0].shape[0]//2], hci[1][:hci[1].shape[0]//2])
-    hci_val = (hci[0][hci[0].shape[0]//2:], hci[1][hci[1].shape[0]//2:])
+    train_prop = 6 # 1/proportion of training to val
+    hci_train = (hci[0][hci[0].shape[0]//train_prop:], hci[1][hci[0].shape[0]//train_prop:])
+    hci_val = (np.squeeze(hci[0][:hci[0].shape[0]//train_prop]), hci[1][:hci[1].shape[0]//train_prop])
     train_set = (np.concatenate((hci_train[0], sintel[0])), np.concatenate((hci_train[1], sintel[1])))
     val_set = hci_val
     
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     # start training
     train(model=model, input_shape=input_shape, batch_size=8, 
-            dataset=dataset, epochs=10, model_name='model2', use_gen=True)
+            dataset=dataset, epochs=10, model_name='model3', use_gen=True)
 
 
 

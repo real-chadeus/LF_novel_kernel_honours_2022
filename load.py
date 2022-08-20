@@ -44,7 +44,7 @@ def augment(dataset):
     
     return imgs, depths
 
-def load_hci(img_shape = (7,512,7,512,3), predict=False, use_tf_ds=False):
+def load_hci(img_shape = (7,512,7,512,3), do_augment=False, predict=False, use_tf_ds=False):
     '''
     load images and depth maps into tensorflow dataset (from HCI) 
     '''
@@ -69,8 +69,19 @@ def load_hci(img_shape = (7,512,7,512,3), predict=False, use_tf_ds=False):
                 depth = depth/np.amax(depth)
                 labels.append(depth)
 
+                if do_augment:
+                    ds = (img, depth)
+                    imgs, depths = augment(ds)
+                    for im in imgs:
+                        if use_tf_ds:
+                            im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
+                        img_set.append(im)
+                    for d in depths:
+                        labels.append(d)
+
             if use_tf_ds:
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
+
             img_set.append(img)
 
     if predict:
@@ -111,8 +122,8 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True):
             depth = depth/np.amax(depth)
             
             if do_augment:
-                dataset = (img, depth)
-                imgs, depths = augment(dataset)
+                ds = (img, depth)
+                imgs, depths = augment(ds)
                 for im in imgs:
                     if use_tf_ds:
                         im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets

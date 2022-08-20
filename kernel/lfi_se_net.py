@@ -14,8 +14,10 @@ class LFSEBlock(tf.keras.Model):
         super(LFSEBlock, self).__init__(name='light_field_se_block')
         self.n_filters = n_filters
         self.filter_size = filter_size
-        self.W1 = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters, n_filters//4)), dtype=tf.float32))
-        self.W2 = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters//4, n_filters)), dtype=tf.float32))
+        self.W1 = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters, n_filters//4)), 
+                                dtype=tf.float32), trainable=True)
+        self.W2 = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters//4, n_filters)), 
+                                dtype=tf.float32), trainable=True)
     
     def call(self, input_tensor, training=True):
         shape = tf.shape(input_tensor) 
@@ -77,8 +79,7 @@ def build_model(input_shape, summary=True, n_sais=49):
 
     # initial input and convolution + layer normalization
     inputs = keras.Input(shape=input_shape, name='lfse_model_input')
-    X = layers.LayerNormalization()(inputs)
-    X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(X) 
+    X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(inputs) 
     X = tf.nn.relu(X)
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
@@ -86,16 +87,20 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = layers.BatchNormalization()(X)
 
     X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = layers.BatchNormalization()(X)
 
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = layers.BatchNormalization()(X)
 
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     #X = layers.RandomFlip()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Dense(2048, activation='sigmoid')(X)
     X = layers.Dense(4096, activation='sigmoid')(X)
@@ -104,7 +109,7 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = tf.expand_dims(X, axis=0)
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)
 
-    X = tf.squeeze(layers.Dense(1, activation='sigmoid')(X))
+    X = tf.squeeze(layers.Dense(1, activation='softmax')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   
  
