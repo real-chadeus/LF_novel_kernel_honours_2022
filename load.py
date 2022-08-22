@@ -71,12 +71,11 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False,
                 d_map = []
                 if use_disp: 
                     d_map = np.load(r_dir + '/stacked/center_disp.npy')
-                    d_map = d_map/np.abs(np.amax(d_map))
-                    labels.append(d_map)
                 else:
                     d_map = np.load(r_dir + '/stacked/center_depth.npy')
-                    d_map = d_map/np.abs(np.amax(d_map))
-                    labels.append(d_map)
+
+                d_map = d_map/np.abs(np.amax(d_map))
+                labels.append(d_map)
 
                 if do_augment:
                     ds = (img, d_map)

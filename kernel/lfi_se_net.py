@@ -80,7 +80,8 @@ def build_model(input_shape, summary=True, n_sais=49):
     # initial input and convolution + layer normalization
     inputs = keras.Input(shape=input_shape, name='lfse_model_input')
     X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(inputs) 
-    X = tf.nn.relu(X)
+    #X = tf.nn.relu(X)
+    X = layers.BatchNormalization()(X)
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
 
@@ -103,13 +104,13 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = layers.BatchNormalization()(X)
 
     X = layers.Dense(2048, activation='relu')(X)
-    X = layers.Dense(4096, activation='softmax')(X)
+    X = layers.Dense(4096, activation='sigmoid')(X)
     X = layers.Dense(2048, activation='relu')(X)
-    X = layers.Dense(4096, activation='softmax')(X)
+    X = layers.Dense(4096, activation='sigmoid')(X)
     X = tf.expand_dims(X, axis=0)
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)
 
-    X = tf.squeeze(layers.Dense(1, activation='softmax')(X))
+    X = tf.squeeze(layers.Dense(1, activation='linear')(X))
     
     model = models.Model(inputs=inputs, outputs=X)   
  

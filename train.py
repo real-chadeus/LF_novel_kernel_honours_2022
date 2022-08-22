@@ -46,7 +46,7 @@ def train(model, input_shape=(), dataset=(),
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.00000001
+    lr = 0.00001
     loss = losses.MeanSquaredLogarithmicError()
     optimizer = Adam(learning_rate=lr)
     # model compile
