@@ -107,10 +107,13 @@ def flatten_hci(save_dir,read_dir,
         if j == right:
             if 'test' not in r_dir: 
                 depth = hci_io.read_depth(r_dir)
-                print(depth)
+                disp = hci_io.read_disparity(r_dir)
                 depth = proc_maps(depth, img_size=img_size)
-                np.save(save_dir + 'center.npy', depth)
-                print(f"{save_dir}center.npy saved.")
+                disp = proc_maps(disp, img_size=img_size)
+                np.save(save_dir + 'center_depth.npy', depth)
+                print(f"{save_dir}center_depth.npy saved.")
+                np.save(save_dir + 'center_disp.npy', disp)
+                print(f"{save_dir}center_disp.npy saved.")
             lfi = lfi.reshape((div*img_size, div*img_size, 3), order='F')
             new_img = Image.fromarray(lfi)
             new_img.save(save_dir+name)
@@ -187,15 +190,15 @@ if __name__ == "__main__":
     data_path = '../../../datasets'
     start = time.time()
 
-    sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
-    for d in sintel_r_dirs:
-        r_dir = d.path + '/'
-        s_dir = r_dir + 'stacked/'
-        print('read dir: ', r_dir)
-        print('save dir: ', s_dir)
-        flatten_sintel(save_dir = s_dir,
-                        read_dir = r_dir,
-                        target_n_sai=9, img_size=436)
+    #sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
+    #for d in sintel_r_dirs:
+    #    r_dir = d.path + '/'
+    #    s_dir = r_dir + 'stacked/'
+    #    print('read dir: ', r_dir)
+    #    print('save dir: ', s_dir)
+    #    flatten_sintel(save_dir = s_dir,
+    #                    read_dir = r_dir,
+    #                    target_n_sai=9, img_size=436)
 
     hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     for s in hci_folder:

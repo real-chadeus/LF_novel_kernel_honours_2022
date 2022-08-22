@@ -36,21 +36,41 @@ def plot_mae(model_name='model1'):
     plt.show()
 
 
-
 def plot_loss(model_name='model1'):
     load_dir = save_dir + model_name + '/'
     f = pd.read_csv(load_dir + 'history.csv')
-    mse = f['val_loss']
-    plt.plot(mse)
+    loss = f['val_loss']
+    plt.plot(loss)
     plt.ylabel('validation loss')
     plt.xlabel('epoch')
     plt.show()
 
-    mse = f['loss']
-    plt.plot(mse)
+    loss = f['loss']
+    plt.plot(loss)
     plt.ylabel('training mean loss')
     plt.xlabel('epoch')
     plt.show()
+
+
+def plot_badpix(model_name='model1'):
+    load_dir = save_dir + model_name + '/'
+    f = pd.read_csv(load_dir + 'history.csv')
+    badpix = f['val_BadPix7']
+    plt.plot(badpix)
+    plt.ylabel('validation badpix')
+    plt.xlabel('epoch')
+    plt.show()
+
+    badpix = f['BadPix7']
+    plt.plot(badpix)
+    plt.ylabel('training badpix')
+    plt.xlabel('epoch')
+    plt.show()
+
+
+
+
+
 
 
 

@@ -7,7 +7,7 @@ import os
 import argparse
 
 class BadPix(tf.keras.metrics.Metric):
-    def __init__(self, name='BadPix7', threshold=0.07):
+    def __init__(self, name='BadPix7', threshold=0.07, **kwargs):
 
         super(BadPix, self).__init__(name=name)
         self.badpix = 0 
@@ -22,10 +22,23 @@ class BadPix(tf.keras.metrics.Metric):
         n_badpix = tf.math.reduce_sum(tf.where(diff_map > self.threshold, 1, 0))
         badpix = n_badpix/tf.size(diff_map) 
         self.badpix = badpix
+
+    def get_config(self):
+        config = super().get_config()
+        return config
+    
+    @classmethod 
+    def from_config(cls, config):
+        return cls(**config)
         
     def result(self):
         return self.badpix 
     
+
+
+
+
+
 
 
 

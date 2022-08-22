@@ -88,7 +88,11 @@ def read_depth(data_folder, highres=False):
 
 
 def read_disparity(data_folder, highres=False):
-    fpath = os.path.join(data_folder, "gt_disp_%s.pfm" % ("highres" if highres else "lowres"))
+    if highres:
+        fpath = os.path.join(data_folder, "gt_depth_highres.pfm")
+    else:
+        fpath = os.path.join(data_folder, "gt_depth_lowres.pfm")
+
     try:
         print("disparity file read success: ", fpath)
         data = read_pfm(fpath)

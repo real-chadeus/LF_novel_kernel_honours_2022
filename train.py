@@ -13,6 +13,7 @@ from tqdm.keras import TqdmCallback
 import os
 import argparse
 import custom_metrics
+import time
 
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
@@ -45,8 +46,8 @@ def train(model, input_shape=(), dataset=(),
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.00001
-    loss = losses.MeanSquaredError()
+    lr = 0.00000001
+    loss = losses.MeanSquaredLogarithmicError()
     optimizer = Adam(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
@@ -60,9 +61,8 @@ def train(model, input_shape=(), dataset=(),
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
     tqdm_callback = tfa.callbacks.TQDMProgressBar()
+    #lr_schedule = LearningRateScheduler(step_decay, verbose=1)
 
-   
-    lr_schedule = LearningRateScheduler(step_decay, verbose=1)
     # prepare dataset
     train = dataset[0]
     train_data = train[0]
@@ -79,11 +79,13 @@ def train(model, input_shape=(), dataset=(),
                                 tf.TensorSpec(shape=(input_shape[1], input_shape[3]), dtype=tf.float32)))
 
         model.fit(x=training,batch_size=batch_size, 
-                    epochs=epochs, validation_data=val, 
+                    epochs=epochs, validation_data=val,
+                    validation_batch_size=1, 
                     callbacks=[TqdmCallback(verbose=2), logger])
     else:
         model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
                     epochs=epochs, validation_data=val,
+                    validation_batch_size=1,
                     callbacks=[TqdmCallback(verbose=2), logger])
 
     model.save(save_path + model_name)
@@ -96,20 +98,21 @@ if __name__ == "__main__":
     model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
     # load datasets
     print('loading dataset...')
-    hci = load.load_hci(img_shape=input_shape, do_augment=True, use_tf_ds=True)
-    sintel = load.load_sintel(img_shape=input_shape, do_augment=False, use_tf_ds=True)
+    hci_train = load.load_hci(img_shape=input_shape, do_augment=True, use_tf_ds=True, use_disp=True)
+    hci_val = load.load_hci(img_shape=input_shape, do_augment=False, use_tf_ds=False, use_disp=True)
+    sintel = load.load_sintel(img_shape=input_shape, do_augment=False, use_tf_ds=True, use_disp=True)
     # prepare datasets for training and validation
-    train_prop = 6 # 1/proportion of training to val
-    hci_train = (hci[0][hci[0].shape[0]//train_prop:], hci[1][hci[0].shape[0]//train_prop:])
-    hci_val = (np.squeeze(hci[0][:hci[0].shape[0]//train_prop]), hci[1][:hci[1].shape[0]//train_prop])
     train_set = (np.concatenate((hci_train[0], sintel[0])), np.concatenate((hci_train[1], sintel[1])))
     val_set = hci_val
     
     dataset = (train_set, val_set)
 
     # start training
-    train(model=model, input_shape=input_shape, batch_size=8, 
-            dataset=dataset, epochs=10, model_name='model3', use_gen=True)
+    start = time.time()
+    train(model=model, input_shape=input_shape, batch_size=32, 
+            dataset=dataset, epochs=30, model_name='model3', use_gen=True)
+    end = time.time()
+    print('time to train: ', end-start)
 
 
 

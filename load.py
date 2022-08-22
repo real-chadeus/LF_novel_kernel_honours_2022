@@ -44,9 +44,11 @@ def augment(dataset):
     
     return imgs, depths
 
-def load_hci(img_shape = (7,512,7,512,3), do_augment=False, predict=False, use_tf_ds=False):
+def load_hci(img_shape = (7,512,7,512,3), do_augment=False, 
+                predict=False, use_tf_ds=False, use_disp=True):
     '''
     load images and depth maps into tensorflow dataset (from HCI) 
+    arg use_disp: use disparity maps instead of depth maps
     '''
     hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     labels = []
@@ -65,18 +67,25 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False, predict=False, use_t
             img = img.reshape(img_shape, order='F')
             # read depth map as labels
             if predict == False:
-                depth = np.load(r_dir + '/stacked/center.npy')
-                depth = depth/np.amax(depth)
-                labels.append(depth)
+                # load and normalize depth/disparity maps
+                d_map = []
+                if use_disp: 
+                    d_map = np.load(r_dir + '/stacked/center_disp.npy')
+                    d_map = d_map/np.abs(np.amax(d_map))
+                    labels.append(d_map)
+                else:
+                    d_map = np.load(r_dir + '/stacked/center_depth.npy')
+                    d_map = d_map/np.abs(np.amax(d_map))
+                    labels.append(d_map)
 
                 if do_augment:
-                    ds = (img, depth)
-                    imgs, depths = augment(ds)
+                    ds = (img, d_map)
+                    imgs, maps = augment(ds)
                     for im in imgs:
                         if use_tf_ds:
                             im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
                         img_set.append(im)
-                    for d in depths:
+                    for d in maps:
                         labels.append(d)
 
             if use_tf_ds:
@@ -93,7 +102,7 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False, predict=False, use_t
     #dataset = tf.data.Dataset.from_tensor_slices(dataset)
     return dataset
 
-def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True):
+def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, use_disp=True):
     '''
     load images and disparity maps from Sintel dataset.
     Also converts disparity maps to depth maps 
@@ -111,31 +120,38 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True):
             else:
                 frame = f"0{i}"
             
+            #if i > 2:
+            #    continue
+            
             # load images
             img = Image.open(r_dir + frame + '_stacked.png')
             img = np.asarray(img)
             img = img.reshape(img_shape, order='F')
 
             # read + normalize disparity maps
-            disp = np.load(r_dir + frame + '_center.npy')
-            depth = 0.01 * 1 / disp 
-            depth = depth/np.amax(depth)
+            d_map = np.load(r_dir + frame + '_center.npy')
+            if use_disp:
+                d_map = d_map/np.abs(np.amax(d_map))
+            else:
+                # convert disp to depth
+                d_map = 0.01 * 1 / d_map 
+                d_map = d_map/np.amax(d_map)
             
             if do_augment:
                 ds = (img, depth)
-                imgs, depths = augment(ds)
+                imgs, maps = augment(ds)
                 for im in imgs:
                     if use_tf_ds:
                         im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
                     img_set.append(im)
-                for depth in depths:
-                    labels.append(depth)
+                for d in maps:
+                    labels.append(d)
 
             if use_tf_ds:
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
 
             img_set.append(img)
-            labels.append(depth)
+            labels.append(d_map)
             
             # diagnostics
             #print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
