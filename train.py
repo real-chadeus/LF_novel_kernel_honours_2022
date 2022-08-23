@@ -14,6 +14,7 @@ import os
 import argparse
 import custom_metrics
 import time
+import functools
 
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
@@ -26,7 +27,6 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
 save_path = 'models/'
 
-
 def step_decay(epoch):
     # learning rate schedule
     factor = 1
@@ -35,7 +35,7 @@ def step_decay(epoch):
     return lr * factor
 
 
-def train(model, input_shape=(), dataset=(), 
+def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', use_gen=True):
     '''
     train function
@@ -46,8 +46,8 @@ def train(model, input_shape=(), dataset=(),
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.00001
-    loss = losses.MeanSquaredLogarithmicError()
+    lr = 0.0001
+    loss = losses.MeanSquaredError()
     optimizer = Adam(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
@@ -63,18 +63,15 @@ def train(model, input_shape=(), dataset=(),
     tqdm_callback = tfa.callbacks.TQDMProgressBar()
     #lr_schedule = LearningRateScheduler(step_decay, verbose=1)
 
-    # prepare dataset
-    train = dataset[0]
-    train_data = train[0]
-    train_labels = train[1]
-    val = dataset[1]
 
     # train model
     if use_gen:
-        def data_gen(): 
-            for i in range(train_data.shape[0]):
-                yield train_data[i], train_labels[i]  
-        training = tf.data.Dataset.from_generator(data_gen,
+        val = val_set 
+        gen = functools.partial(load.dataset_gen, input_shape)
+        #def data_gen(): 
+        #    for i in range(train_data.shape[0]):
+        #        yield train_data[i], train_labels[i]  
+        training = tf.data.Dataset.from_generator(gen,
               output_signature=(tf.TensorSpec(shape=(1,) + input_shape, dtype=tf.int8),
                                 tf.TensorSpec(shape=(input_shape[1], input_shape[3]), dtype=tf.float32)))
 
@@ -83,6 +80,10 @@ def train(model, input_shape=(), dataset=(),
                     validation_batch_size=1, 
                     callbacks=[TqdmCallback(verbose=2), logger])
     else:
+        train = dataset[0]
+        train_data = train[0]
+        train_labels = train[1]
+        val = dataset[1]
         model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
                     epochs=epochs, validation_data=val,
                     validation_batch_size=1,
@@ -97,20 +98,25 @@ if __name__ == "__main__":
     input_shape = (3,436,3,436,3)
     model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
     # load datasets
-    print('loading dataset...')
-    hci_train = load.load_hci(img_shape=input_shape, do_augment=True, use_tf_ds=True, use_disp=True)
-    hci_val = load.load_hci(img_shape=input_shape, do_augment=False, use_tf_ds=False, use_disp=True)
-    sintel = load.load_sintel(img_shape=input_shape, do_augment=False, use_tf_ds=True, use_disp=True)
+    #print('loading dataset...')
+    #hci_train = load.load_hci(img_shape=input_shape, do_augment=True, 
+    #                            use_tf_ds=True, use_disp=True)
+    #sintel = load.load_sintel(img_shape=input_shape, do_augment=False, 
+    #                            use_tf_ds=True, use_disp=True)
+    hci_val = load.load_hci(img_shape=input_shape, do_augment=False, 
+                                use_tf_ds=False, use_disp=True)
     # prepare datasets for training and validation
-    train_set = (np.concatenate((hci_train[0], sintel[0])), np.concatenate((hci_train[1], sintel[1])))
+    #train_set = (np.concatenate((hci_train[0], sintel[0])), np.concatenate((hci_train[1], sintel[1])))
     val_set = hci_val
     
-    dataset = (train_set, val_set)
+    #dataset = (train_set, val_set)
 
     # start training
     start = time.time()
+    #train(model=model, input_shape=input_shape, batch_size=32, 
+    #        dataset=dataset, epochs=30, model_name='model3', use_gen=True)
     train(model=model, input_shape=input_shape, batch_size=32, 
-            dataset=dataset, epochs=30, model_name='model3', use_gen=True)
+            val_set=val_set, epochs=30, model_name='model3', use_gen=True)
     end = time.time()
     print('time to train: ', end-start)
 

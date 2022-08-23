@@ -101,10 +101,11 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False,
     #dataset = tf.data.Dataset.from_tensor_slices(dataset)
     return dataset
 
+
+
 def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, use_disp=True):
     '''
     load images and disparity maps from Sintel dataset.
-    Also converts disparity maps to depth maps 
     '''
     sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
     img_set = []
@@ -137,7 +138,7 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
                 d_map = d_map/np.amax(d_map)
             
             if do_augment:
-                ds = (img, depth)
+                ds = (img, d_map)
                 imgs, maps = augment(ds)
                 for im in imgs:
                     if use_tf_ds:
@@ -148,6 +149,7 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
 
             if use_tf_ds:
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
+            
 
             img_set.append(img)
             labels.append(d_map)
@@ -164,11 +166,75 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
     print('labels shape', labels.shape)
     dataset = (img_set, labels)
     return dataset
-
-     
     
 
+def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=True):
+    '''
+    yields images and disparity maps from both datasets as a generator (reduces memory usage).
+    Loads in order of Sintel -> HCI
+    For training only.
+    '''
+    sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
+    for d in sintel_r_dirs:
+        r_dir = d.path + '/stacked/'
+        n_frames = len([f for f in os.scandir(r_dir) if f.is_file()])//3 #number of frames in the current scene
+        for i in range(n_frames):
+            if i < 10:
+                frame = f"00{i}"
+            else:
+                frame = f"0{i}"
+            
+            # load images
+            img = Image.open(r_dir + frame + '_stacked.png')
+            img = np.asarray(img)
+            img = img.reshape(img_shape, order='F')
 
+            # read + normalize disparity maps
+            d_map = np.load(r_dir + frame + '_center.npy')
+            d_map = d_map/np.abs(np.amax(d_map))
+            
+            if augment_sintel:
+                ds = (img, d_map)
+                imgs, maps = augment(ds)
+                for x in range(len(imgs)):
+                    im = imgs[x]
+                    d = maps[x]
+                    im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
+                    yield (im, d)
+
+            img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (img, d_map)
+
+
+    hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
+    for s in hci_folder:
+        sub_dir = s.path
+        hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
+        for d in hci_r_dirs:
+            r_dir = d.path
+            if 'test' in r_dir and predict == False:
+                continue
+            # load images
+            img = Image.open(r_dir + '/stacked/stacked.png')
+            img = np.asarray(img)
+            img = img.reshape(img_shape, order='F')
+
+            # load and normalize disparity maps
+            d_map = np.load(r_dir + '/stacked/center_disp.npy')
+            d_map = d_map/np.abs(np.amax(d_map))
+
+            if augment_hci:
+                ds = (img, d_map)
+                imgs, maps = augment(ds)
+                for x in range(len(imgs)):
+                    im = imgs[x]
+                    d = maps[x]
+                    im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
+                    yield (im, d)
+
+            img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
+            
+            yield (img, d_map) 
 
 
 
