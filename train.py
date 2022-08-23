@@ -4,7 +4,6 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
 import tensorflow_addons as tfa
 import load
-import preprocessing.flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import kernel.lfi_se_net as se_net
 import tensorflow.keras.losses as losses
@@ -36,7 +35,8 @@ def step_decay(epoch):
 
 
 def train(model, input_shape=(), dataset=(), val_set=[], 
-            epochs=10, batch_size=1, model_name='model1', use_gen=True):
+            epochs=10, batch_size=1, model_name='model1', 
+            use_gen=True, load_model=False):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -56,13 +56,15 @@ def train(model, input_shape=(), dataset=(), val_set=[],
                             ])
 
     # checkpoint
-    checkpoint = ModelCheckpoint(filepath = f'{save_path}/weights.h5', monitor='val_loss',
-            save_best_only=True, save_weights_only=True, verbose=0, mode='auto')
+    checkpoint = ModelCheckpoint(filepath = save_path + model_name, monitor='val_mean_squared_error',
+            save_best_only=True, save_weights_only=False, verbose=1, mode='auto')
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
     tqdm_callback = tfa.callbacks.TQDMProgressBar()
     #lr_schedule = LearningRateScheduler(step_decay, verbose=1)
 
+    if load_model:
+        model.load(save_path + model_name)
 
     # train model
     if use_gen:
@@ -78,7 +80,8 @@ def train(model, input_shape=(), dataset=(), val_set=[],
         model.fit(x=training,batch_size=batch_size, 
                     epochs=epochs, validation_data=val,
                     validation_batch_size=1, 
-                    callbacks=[TqdmCallback(verbose=2), logger])
+                    callbacks=[TqdmCallback(verbose=2), 
+                                checkpoint, logger])
     else:
         train = dataset[0]
         train_data = train[0]
@@ -95,28 +98,18 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 if __name__ == "__main__":
     # define model
     #input_shape = (7,512,7,512,3)
-    input_shape = (3,436,3,436,3)
-    model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
+    input_shape = (9,436,9,436,3)
+    model = se_net.build_model(input_shape=input_shape, summary=True, 
+                                n_sais=81)
     # load datasets
-    #print('loading dataset...')
-    #hci_train = load.load_hci(img_shape=input_shape, do_augment=True, 
-    #                            use_tf_ds=True, use_disp=True)
-    #sintel = load.load_sintel(img_shape=input_shape, do_augment=False, 
-    #                            use_tf_ds=True, use_disp=True)
     hci_val = load.load_hci(img_shape=input_shape, do_augment=False, 
                                 use_tf_ds=False, use_disp=True)
-    # prepare datasets for training and validation
-    #train_set = (np.concatenate((hci_train[0], sintel[0])), np.concatenate((hci_train[1], sintel[1])))
-    val_set = hci_val
     
-    #dataset = (train_set, val_set)
-
-    # start training
+    # training
     start = time.time()
-    #train(model=model, input_shape=input_shape, batch_size=32, 
-    #        dataset=dataset, epochs=30, model_name='model3', use_gen=True)
     train(model=model, input_shape=input_shape, batch_size=32, 
-            val_set=val_set, epochs=30, model_name='model3', use_gen=True)
+            val_set=hci_val, epochs=10, model_name='model4', 
+            use_gen=True, load_model=False)
     end = time.time()
     print('time to train: ', end-start)
 

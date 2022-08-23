@@ -4,7 +4,7 @@ import sys, glob, os, random
 import pandas as pd
 import matplotlib.pyplot as plt
 import time
-import preprocessing.hci_dataset_tools.file_io as hci_io
+import hci_dataset_tools.file_io as hci_io
 
 ### Flatten datasets which have LFIs as 2D image files of each SAI.
 exclude_ref = True
@@ -179,26 +179,25 @@ def flatten_sintel(save_dir,read_dir,
             if k == right:
                 lfi = lfi.reshape((div*img_size, div*img_size, 3), order='F')
                 new_img = Image.fromarray(lfi)
-                #new_img.show()
                 new_img.save(save_dir+frame +'_'+name)
                 # stacked disparities
-                np.save(save_dir+f'{frame}_stacked.npy', disps)
-                print(f"{save_dir}{name} and {save_dir}{frame}_stacked.npy saved.")
+                #np.save(save_dir+f'{frame}_stacked.npy', disps)
+                #print(f"{save_dir}{name} and {save_dir}{frame}_stacked.npy saved.")
         
 
 if __name__ == "__main__":
     data_path = '../../../datasets'
     start = time.time()
 
-    #sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
-    #for d in sintel_r_dirs:
-    #    r_dir = d.path + '/'
-    #    s_dir = r_dir + 'stacked/'
-    #    print('read dir: ', r_dir)
-    #    print('save dir: ', s_dir)
-    #    flatten_sintel(save_dir = s_dir,
-    #                    read_dir = r_dir,
-    #                    target_n_sai=9, img_size=436)
+    sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
+    for d in sintel_r_dirs:
+        r_dir = d.path + '/'
+        s_dir = r_dir + 'stacked/'
+        print('read dir: ', r_dir)
+        print('save dir: ', s_dir)
+        flatten_sintel(save_dir = s_dir,
+                        read_dir = r_dir,
+                        target_n_sai=81, img_size=436)
 
     hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     for s in hci_folder:
@@ -211,7 +210,7 @@ if __name__ == "__main__":
             print('save dir: ', s_dir)
             flatten_hci(save_dir = s_dir, 
                             read_dir = r_dir,
-                            n_sai = 80, target_n_sai=9, img_size = 436)
+                            n_sai = 80, target_n_sai=81, img_size = 436)
         
     end = time.time()
     print('time to flatten: ', end-start)

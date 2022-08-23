@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import sys, glob, os, random
 import pandas as pd
 import scipy.io as sio
-import preprocessing.flatten as flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
 
 data_path = '../../datasets'
@@ -212,7 +211,7 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
         hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
         for d in hci_r_dirs:
             r_dir = d.path
-            if 'test' in r_dir and predict == False:
+            if 'test' in r_dir:
                 continue
             # load images
             img = Image.open(r_dir + '/stacked/stacked.png')
