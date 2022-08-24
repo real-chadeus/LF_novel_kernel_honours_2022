@@ -1,9 +1,10 @@
 import pathlib, datetime
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
 import tensorflow_addons as tfa
-import load
+import load_data
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import kernel.lfi_se_net as se_net
 import tensorflow.keras.losses as losses
@@ -11,7 +12,7 @@ import numpy as np
 from tqdm.keras import TqdmCallback
 import os
 import argparse
-import custom_metrics
+from custom_metrics import BadPix
 import time
 import functools
 
@@ -47,12 +48,14 @@ def train(model, input_shape=(), dataset=(), val_set=[],
         os.makedirs(save_path + model_name)
 
     lr = 0.0001
-    loss = losses.MeanSquaredError()
+    loss = losses.MeanAbsoluteError()
     optimizer = Adam(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
-                            custom_metrics.BadPix()
+                            BadPix(name='BadPix7', threshold=0.07),
+                            BadPix(name='BadPix3', threshold=0.03),
+                            BadPix(name='BadPix1', threshold=0.01)
                             ])
 
     # checkpoint
@@ -64,12 +67,12 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     #lr_schedule = LearningRateScheduler(step_decay, verbose=1)
 
     if load_model:
-        model.load(save_path + model_name)
+        model = keras.models.load_model(save_path + model_name, custom_objects={'BadPix': BadPix})
 
     # train model
     if use_gen:
         val = val_set 
-        gen = functools.partial(load.dataset_gen, input_shape)
+        gen = functools.partial(load_data.dataset_gen, input_shape)
         #def data_gen(): 
         #    for i in range(train_data.shape[0]):
         #        yield train_data[i], train_labels[i]  
@@ -102,14 +105,14 @@ if __name__ == "__main__":
     model = se_net.build_model(input_shape=input_shape, summary=True, 
                                 n_sais=81)
     # load datasets
-    hci_val = load.load_hci(img_shape=input_shape, do_augment=False, 
+    hci_val = load_data.load_hci(img_shape=input_shape, do_augment=False, 
                                 use_tf_ds=False, use_disp=True)
     
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=32, 
             val_set=hci_val, epochs=10, model_name='model4', 
-            use_gen=True, load_model=False)
+            use_gen=True, load_model=True)
     end = time.time()
     print('time to train: ', end-start)
 

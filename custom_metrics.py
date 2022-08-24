@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import pathlib, datetime
-import load
+import load_data
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import os
 import argparse
