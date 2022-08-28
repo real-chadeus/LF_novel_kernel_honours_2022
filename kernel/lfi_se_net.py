@@ -47,6 +47,72 @@ class LFSEBlock(tf.keras.Model):
 
         return tf.nn.relu(result)
 
+class CostConstructor(tf.keras.Model):
+    '''
+    generates occlusion aware matching costs.
+    '''
+    def __init__(self, channel_in, channel_out, angres, mindisp, maxdisp):
+        super(CostConstructor, self).__init__(name='cost_constructor')
+        self.mask = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters, n_filters//4)), 
+                                dtype=tf.float32), trainable=True)
+    
+    def warp(self, img, disp, du, dv, x_base, y_base):
+        # du and dv -> difference in angular position between current view and center view
+        h = img.shape[1]
+        w = img.shape[3]
+        x_shifts = dv * disp[:, 0, :, :] / w
+        y_shifts = du * disp[:, 0, :, :] / h
+        flow_field = tf.stack((x_base + x_shifts, y_base + y_shifts), axis=1)
+        img_warped = F.grid_sample(img, 2 * flow_field - 1, mode='bilinear', padding_mode='zeros')
+        return img_warped
+
+    def aggregate(self, cost_volume, n_filters=24):
+        X = layers.Conv3D(n_filters, kerenel_size=(1,1,0), padding='same')(cost_volume)
+        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
+        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
+        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
+        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
+        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
+        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
+
+    def modulate(self, x, mask):
+        # modulate pixels
+        mask_flatten = tf.Flatten()
+    
+    def occlusion_mask(lfi, disp):
+        angres = lfi.shape[0] 
+        h = lfi.shape[1]
+        w = lfi.shape[3]
+        x_base = tf.repeat(tf.linspace(0,1,w), [1,h,1]) 
+        y_base = tf.transpose(tf.repeat(tf.linspace(0,1,h), [1,w,1]))
+        center = (angres - 1)//2 # center view
+        img_ref = lfi[center, :, center, :, :]
+        result = []
+        for u in range(angres):
+            for v in range(angres):
+                img = lfi[u, :, v, :, :]
+                if u == center and v == center:
+                    img_warped = img
+                else:
+                    du, dv = u - center, v - center
+                    img_warped = warp(img, -disp, du, dv, x_base, y_base)
+                result.append(abs((img_warped - img_ref)))
+        mask = tf.concat(result, axis=1)
+        mask = (1-mask) ** 2
+        return mask
+
+    def call(self, input_tensor, curr_disp=None):
+        if curr_disp is not None:
+            mask = occlusion_mask(input_tensor, curr_disp)
+            
+        
+
+def aggregate(inputs):
+    '''
+    aggregate the cost volume
+    ''' 
+    return None 
+
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
                     stride=2, img_shape=(7,512,7,512,3),
@@ -68,21 +134,18 @@ def LF_conv_block(inputs, n_filters=4,
         X1 = tf.reshape(X1, (n_ang, img_shape[1], n_ang, img_shape[3], img_shape[-1]))
         fmaps.append(X1)
     X = tf.squeeze(tf.stack(fmaps, axis=1))
-    X = layers.Conv3D(n_filters, 1, padding='same', activation='relu')(X)
+    X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
     return X
 
 def build_model(input_shape, summary=True, n_sais=49):
     '''
     build the model
-    param output_shape: size of the 2D depth map. default 420
+    param output_shape: size of the 2D depth map
     '''
 
     # initial input and convolution + layer normalization
-    print(input_shape)
     inputs = keras.Input(shape=input_shape, name='lfse_model_input')
     X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(inputs) 
-    #X = tf.nn.relu(X)
-    X = layers.BatchNormalization()(X)
     
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
 
@@ -101,7 +164,6 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = layers.BatchNormalization()(X)
 
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
-    #X = layers.RandomFlip()(X)
     X = layers.BatchNormalization()(X)
 
     X = layers.Dense(2048, activation='relu')(X)
