@@ -19,7 +19,7 @@ def augment(dataset):
     returns: tuple (images, depth maps)
     arg dataset: tuple (image, depth map)
     '''
-    # img of shape (x,y,x,y,3) where x is the angular dim and y is the spatial dim
+    # img of shape (x1,y1,x2,y2,3) where x is the angular dim and y is the spatial dim
     # flips and rotates 90 degrees
     img = dataset[0]
     depth = dataset[1]

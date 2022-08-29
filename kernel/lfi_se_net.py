@@ -4,6 +4,7 @@ import tensorflow.keras.models as models
 from tensorflow.keras import backend as K
 import tensorflow as tf
 import numpy as np
+import einops
 
 class LFSEBlock(tf.keras.Model):
     '''
@@ -47,14 +48,58 @@ class LFSEBlock(tf.keras.Model):
 
         return tf.nn.relu(result)
 
+class DepthCueExtractor(tf.keras.Model):
+    '''
+    extracts monocular depth cue information
+    '''
+    def __init__(self, h, w, angres):
+        super(CostConstructor, self).__init__(name='depth_cue_extractor')
+    
+    def relative_size(self):
+        return None
+
+    def height_in_plane(self):
+        return None
+    
+    def call(self):
+        return None
+
 class CostConstructor(tf.keras.Model):
     '''
     generates occlusion aware matching costs.
     '''
-    def __init__(self, channel_in, channel_out, angres, mindisp, maxdisp):
+    def __init__(self, h, w, angres, f_maps):
         super(CostConstructor, self).__init__(name='cost_constructor')
-        self.mask = tf.Variable(tf.cast(tf.convert_to_tensor(np.random.randn(n_filters, n_filters//4)), 
+        self.angres = angres
+        self.h = h
+        self.w = w
+        # occlusion mask is trainable; initialized with values of 1
+        self.mask = tf.Variable(tf.cast(tf.convert_to_tensor(tf.ones((angres, h, angres, w, 1))), 
                                 dtype=tf.float32), trainable=True)
+        
+        self.cost = self.build_cost(f_maps, self.mask)
+        self.disp = self.aggregate(self.cost)
+
+    def aggregate(self, cost_volume, n_filters=24):
+        # aggregate the cost volume by extracting relevant features
+        X = layers.Conv3D(n_filters, kernel_size=(1,1,1), padding='same')(cost_volume)
+        X = layers.BatchNormalization()(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.LeakyReLU()(X)
     
     def warp(self, img, disp, du, dv, x_base, y_base):
         # du and dv -> difference in angular position between current view and center view
@@ -63,23 +108,11 @@ class CostConstructor(tf.keras.Model):
         x_shifts = dv * disp[:, 0, :, :] / w
         y_shifts = du * disp[:, 0, :, :] / h
         flow_field = tf.stack((x_base + x_shifts, y_base + y_shifts), axis=1)
-        img_warped = F.grid_sample(img, 2 * flow_field - 1, mode='bilinear', padding_mode='zeros')
+        img_warped = 1 
         return img_warped
-
-    def aggregate(self, cost_volume, n_filters=24):
-        X = layers.Conv3D(n_filters, kerenel_size=(1,1,0), padding='same')(cost_volume)
-        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
-        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
-        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
-        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
-        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
-        X = layers.Conv3D(n_filters, kerenel_size=(3,1,1), padding='same')(X)
-
-    def modulate(self, x, mask):
-        # modulate pixels
-        mask_flatten = tf.Flatten()
     
-    def occlusion_mask(lfi, disp):
+    def occlusion_mask(self, lfi, disp):
+        # create mask to handle occlusions
         angres = lfi.shape[0] 
         h = lfi.shape[1]
         w = lfi.shape[3]
@@ -98,20 +131,19 @@ class CostConstructor(tf.keras.Model):
                     img_warped = warp(img, -disp, du, dv, x_base, y_base)
                 result.append(abs((img_warped - img_ref)))
         mask = tf.concat(result, axis=1)
-        mask = (1-mask) ** 2
         return mask
 
-    def call(self, input_tensor, curr_disp=None):
-        if curr_disp is not None:
-            mask = occlusion_mask(input_tensor, curr_disp)
-            
-        
+    def build_cost(self, x, mask):
+        # apply mask to the image
+        cost = x * mask
+        return cost
 
-def aggregate(inputs):
-    '''
-    aggregate the cost volume
-    ''' 
-    return None 
+    def call(self, img, f_maps):
+        self.mask = self.occlusion_mask(img, self.disp)
+        self.cost = self.build_cost(f_maps, mask)
+        self.disp = self.aggregate(cost)
+        return self.disp
+
 
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
@@ -152,23 +184,31 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=6, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = layers.LeakyReLU()(X)
     X = layers.BatchNormalization()(X)
 
     X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=12, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = layers.LeakyReLU()(X)
     X = layers.BatchNormalization()(X)
 
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais) 
     X = LF_conv_block(X, n_filters=24, filter_size=(3,3), img_shape=X.shape, n_sais=n_sais)
+    X = layers.LeakyReLU()(X)
     X = layers.BatchNormalization()(X)
+    
+    X = CostConstructor(h=X.shape[1], w=X.shape[3], 
+                        angres = input_shape[0], f_maps=X)(img=inputs, f_maps=X)
 
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     X = layers.BatchNormalization()(X)
-
-    X = layers.Dense(2048, activation='relu')(X)
+    
+    X = layers.Dense(2048, activation='linear')(X)
+    X = layers.LeakyReLU()(X)
     X = layers.Dense(4096, activation='sigmoid')(X)
-    X = layers.Dense(2048, activation='relu')(X)
+    X = layers.Dense(2048, activation='linear')(X)
+    X = layers.LeakyReLU()(X)
     X = layers.Dense(4096, activation='sigmoid')(X)
     X = tf.expand_dims(X, axis=0)
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)

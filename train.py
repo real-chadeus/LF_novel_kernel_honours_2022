@@ -103,7 +103,7 @@ if __name__ == "__main__":
     #input_shape = (7,512,7,512,3)
     input_shape = (9,436,9,436,3)
     model = se_net.build_model(input_shape=input_shape, summary=True, 
-                                n_sais=81)
+                                    n_sais=81)
     # load datasets
     hci_val = load_data.load_hci(img_shape=input_shape, do_augment=False, 
                                 use_tf_ds=False, use_disp=True)
@@ -111,8 +111,8 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=32, 
-            val_set=hci_val, epochs=10, model_name='model5', 
-            use_gen=True, load_model=False)
+            val_set=hci_val, epochs=10, model_name='model4', 
+            use_gen=True, load_model=True)
     end = time.time()
     print('time to train: ', end-start)
 
