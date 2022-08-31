@@ -54,15 +54,33 @@ class DepthCueExtractor(tf.keras.Model):
     '''
     def __init__(self, h, w, angres):
         super(CostConstructor, self).__init__(name='depth_cue_extractor')
-    
-    def relative_size(self):
-        return None
+        self.h = h
+        self.w = w
+        self.angres = angres
+        self.size_mask = tf.ones((angres, h, angres, w, 1)) 
+        self.height_mask = tf.ones((angres, h, angres, w, 1)) 
 
-    def height_in_plane(self):
-        return None
+    def relative_size(self, lfi):
+        '''
+        extracts relative size through combined views
+        '''
+        center = self.angres // 2
+        center_view = lfi[center, :, center, :, :]
+         
+        return f_map
+
+    def height_in_plane(self, lfi):
+        '''
+        extracts height in plane from the center view
+        '''
+        center = self.angres // 2
+        extracted_img = lfi * self.height_kernel
+        return f_map
     
-    def call(self):
-        return None
+    def call(self, input_tensor):
+        r_size = relative_size(input_tensor)
+        h_inplane = height_in_plane(input_tensor)
+        return r_size, h_inplane
 
 class CostConstructor(tf.keras.Model):
     '''
@@ -74,9 +92,7 @@ class CostConstructor(tf.keras.Model):
         self.h = h
         self.w = w
         # occlusion mask is trainable; initialized with values of 1
-        self.mask = tf.Variable(tf.cast(tf.convert_to_tensor(tf.ones((angres, h, angres, w, 1))), 
-                                dtype=tf.float32), trainable=True)
-        
+        self.mask = tf.ones((angres, h, angres, w, 1)) 
         self.cost = self.build_cost(f_maps, self.mask)
         self.disp = self.aggregate(self.cost)
 
@@ -101,37 +117,12 @@ class CostConstructor(tf.keras.Model):
         X = layers.BatchNormalization()(X)
         X = layers.LeakyReLU()(X)
     
-    def warp(self, img, disp, du, dv, x_base, y_base):
-        # du and dv -> difference in angular position between current view and center view
-        h = img.shape[1]
-        w = img.shape[3]
-        x_shifts = dv * disp[:, 0, :, :] / w
-        y_shifts = du * disp[:, 0, :, :] / h
-        flow_field = tf.stack((x_base + x_shifts, y_base + y_shifts), axis=1)
-        img_warped = 1 
-        return img_warped
     
     def occlusion_mask(self, lfi, disp):
         # create mask to handle occlusions
-        angres = lfi.shape[0] 
-        h = lfi.shape[1]
-        w = lfi.shape[3]
-        x_base = tf.repeat(tf.linspace(0,1,w), [1,h,1]) 
-        y_base = tf.transpose(tf.repeat(tf.linspace(0,1,h), [1,w,1]))
-        center = (angres - 1)//2 # center view
-        img_ref = lfi[center, :, center, :, :]
-        result = []
-        for u in range(angres):
-            for v in range(angres):
-                img = lfi[u, :, v, :, :]
-                if u == center and v == center:
-                    img_warped = img
-                else:
-                    du, dv = u - center, v - center
-                    img_warped = warp(img, -disp, du, dv, x_base, y_base)
-                result.append(abs((img_warped - img_ref)))
-        mask = tf.concat(result, axis=1)
-        return mask
+         
+        return None
+        
 
     def build_cost(self, x, mask):
         # apply mask to the image
@@ -198,8 +189,11 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = layers.LeakyReLU()(X)
     X = layers.BatchNormalization()(X)
     
-    X = CostConstructor(h=X.shape[1], w=X.shape[3], 
-                        angres = input_shape[0], f_maps=X)(img=inputs, f_maps=X)
+    #X = CostConstructor(h=X.shape[1], w=X.shape[3], 
+    #                    angres = input_shape[0], f_maps=X)(img=inputs, f_maps=X)
+
+    #X = DepthCueExtractor(h=X.shape[1], w=X.shape[3], 
+    #                    angres = input_shape[0])(X)
 
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     X = layers.BatchNormalization()(X)

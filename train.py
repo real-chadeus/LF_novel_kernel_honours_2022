@@ -110,9 +110,9 @@ if __name__ == "__main__":
     
     # training
     start = time.time()
-    train(model=model, input_shape=input_shape, batch_size=32, 
-            val_set=hci_val, epochs=10, model_name='model4', 
-            use_gen=True, load_model=True)
+    train(model=model, input_shape=input_shape, batch_size=16, 
+            val_set=hci_val, epochs=10, model_name='model5', 
+            use_gen=True, load_model=False)
     end = time.time()
     print('time to train: ', end-start)
 
