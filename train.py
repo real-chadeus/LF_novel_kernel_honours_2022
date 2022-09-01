@@ -37,7 +37,8 @@ def step_decay(epoch):
 
 def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', 
-            use_gen=True, load_model=False):
+            use_gen=True, load_model=False, load_sintel=True,
+            load_hci=True, augment_sintel=True, augment_hci=True):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -72,7 +73,9 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     # train model
     if use_gen:
         val = val_set 
-        gen = functools.partial(load_data.dataset_gen, input_shape)
+        gen = functools.partial(load_data.dataset_gen, input_shape, 
+                                load_sintel=load_sintel, load_hci=load_hci,
+                                augment_sintel=augment_sintel, augment_hci=augment_hci)
         #def data_gen(): 
         #    for i in range(train_data.shape[0]):
         #        yield train_data[i], train_labels[i]  
@@ -104,15 +107,18 @@ if __name__ == "__main__":
     input_shape = (9,436,9,436,3)
     model = se_net.build_model(input_shape=input_shape, summary=True, 
                                     n_sais=81)
-    # load datasets
+    # validation dataset
     hci_val = load_data.load_hci(img_shape=input_shape, do_augment=False, 
                                 use_tf_ds=False, use_disp=True)
+    #sintel_val = load_data.load_sintel(img_shape=input_shape, do_augment=False,
+    #                                    use_tf_ds=False, use_disp=True)
     
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=16, 
-            val_set=hci_val, epochs=10, model_name='model5', 
-            use_gen=True, load_model=False)
+            val_set=hci_val, epochs=10, model_name='hci_only1', 
+            use_gen=True, load_model=False, load_sintel=False,
+            load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
     print('time to train: ', end-start)
 

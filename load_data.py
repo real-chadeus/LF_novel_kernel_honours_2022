@@ -13,35 +13,117 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 
 data_path = '../../datasets'
 
-def augment(dataset):
+def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
+            num_noise=1, num_sat=1, num_bright=1, use_gen=True,
+            img_shape=(9,436,9,436,3)):
     '''
-    augment function
+    custom augment function
     returns: tuple (images, depth maps)
     arg dataset: tuple (image, depth map)
     '''
-    # img of shape (x1,y1,x2,y2,3) where x is the angular dim and y is the spatial dim
-    # flips and rotates 90 degrees
     img = dataset[0]
-    depth = dataset[1]
+    disp = dataset[1]
+    imgs = [] 
+    disps = []
 
-    # flip
-    new_img1 = np.flip(img, axis=1)
-    new_depth1 = np.flip(depth, axis=0)
-    new_img2 = np.flip(img, axis=3)
-    new_depth2 = np.flip(depth, axis=1)
-    new_img3 = np.flip(img, axis=(1,3))
-    new_depth3 = np.flip(depth, axis=(0,1))
+    # random flip
+    for i in range(num_flips):
+        axes = [1,2]
+        flip_axis = np.random.choice(axes)
+        if flip_axis == 2:
+            d_axis = 1
+        else:
+            d_axis = 0
+
+        new_img = np.flip(img, axis=flip_axis)
+        new_disp = np.flip(disp, axis=d_axis)
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
     
-    # rotate
-    new_img4 = np.rot90(img, k=1, axes=(1,3))
-    new_depth4 = np.rot90(depth, k=0, axes=(0,1))
-    new_img5 = np.rot90(img, k=1, axes=(3,1))
-    new_depth5 = np.rot90(depth, k=0, axes=(1,0))
-   
-    imgs = [new_img1, new_img2, new_img3, new_img4, new_img5] 
-    depths = [new_depth1, new_depth2, new_depth3, new_depth4, new_depth5]
+    # random 90 degree rotate
+    for i in range(num_rot):
+        axes = [1,2]
+        axis1 = np.random.choice(axes)
+        if axis1 == 2:
+            axis2 = 1
+            d_axis1 = 1
+            d_axis2 = 0
+        else:
+            axis2 = 2
+            d_axis1 = 0
+            d_axis2 = 1
+            
+        new_img = np.rot90(img, k=1, axes=(axis1,axis2))
+        new_disp = np.rot90(disp, k=0, axes=(d_axis1,d_axis2))
+        imgs.append(new_img)
+        imgs.append(new_disp)
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
     
-    return imgs, depths
+    # Gaussian noise
+    for i in range(num_noise):
+        noise = np.random.normal(loc=0.0, scale=1, size=img.shape) 
+        new_img = img + noise
+        new_disp = disp
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
+
+    # random contrast
+    for i in range(num_contrast):
+        factor = np.random.uniform(0,2)
+        new_img = tf.image.adjust_contrast(img, contrast_factor=factor).numpy()
+        new_disp = disp
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
+
+    # random saturation
+    for i in range(num_sat):
+        factor = np.random.uniform(0,2)
+        new_img = tf.image.adjust_saturation(img, saturation_factor=factor).numpy() 
+        new_disp = disp
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
+
+    # random brightness
+    for i in range(num_bright):
+        factor = np.random.uniform(0,2)
+        new_img = tf.image.adjust_brightness(img, delta=factor).numpy()
+        new_disp = disp
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
+    
+    if use_gen == False:
+        return imgs, disps
 
 def load_hci(img_shape = (7,512,7,512,3), do_augment=False, 
                 predict=False, use_tf_ds=False, use_disp=True):
@@ -63,7 +145,6 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False,
             # load + normalize
             img = Image.open(r_dir + '/stacked/stacked.png')
             img = np.asarray(img)
-            img = img.reshape(img_shape, order='F')
             # read depth map as labels
             if predict == False:
                 # load and normalize depth/disparity maps
@@ -86,6 +167,7 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False,
                     for d in maps:
                         labels.append(d)
 
+            img = img.reshape(img_shape, order='F')
             if use_tf_ds:
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
 
@@ -99,7 +181,6 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False,
     dataset = (img_set, labels)
     #dataset = tf.data.Dataset.from_tensor_slices(dataset)
     return dataset
-
 
 
 def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, use_disp=True):
@@ -125,7 +206,6 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
             # load images
             img = Image.open(r_dir + frame + '_stacked.png')
             img = np.asarray(img)
-            img = img.reshape(img_shape, order='F')
 
             # read + normalize disparity maps
             d_map = np.load(r_dir + frame + '_center.npy')
@@ -146,18 +226,12 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
                 for d in maps:
                     labels.append(d)
 
+            img = img.reshape(img_shape, order='F')
             if use_tf_ds:
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
-            
 
             img_set.append(img)
             labels.append(d_map)
-            
-            # diagnostics
-            #print('loaded image {}'.format(r_dir + frame + '_stacked.png'))
-            #if i % 20 == 0:
-            #    pr = Image.fromarray(img[1,:,1,:])
-            #    pr.show()
 
     img_set = np.asarray(img_set)
     labels = np.asarray(labels)
@@ -167,7 +241,7 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
     return dataset
     
 
-def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=True
+def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=True,
                 load_sintel=True, load_hci=True):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
@@ -188,7 +262,6 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
                 # load images
                 img = Image.open(r_dir + frame + '_stacked.png')
                 img = np.asarray(img)
-                img = img.reshape(img_shape, order='F')
 
                 # read + normalize disparity maps
                 d_map = np.load(r_dir + frame + '_center.npy')
@@ -196,13 +269,9 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
                 
                 if augment_sintel:
                     ds = (img, d_map)
-                    imgs, maps = augment(ds)
-                    for x in range(len(imgs)):
-                        im = imgs[x]
-                        d = maps[x]
-                        im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
-                        yield (im, d)
+                    yield from augment(ds, img_shape=img_shape)
 
+                img = img.reshape(img_shape, order='F')
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
                 yield (img, d_map)
 
@@ -218,7 +287,6 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
                 # load images
                 img = Image.open(r_dir + '/stacked/stacked.png')
                 img = np.asarray(img)
-                img = img.reshape(img_shape, order='F')
 
                 # load and normalize disparity maps
                 d_map = np.load(r_dir + '/stacked/center_disp.npy')
@@ -226,13 +294,9 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
 
                 if augment_hci:
                     ds = (img, d_map)
-                    imgs, maps = augment(ds)
-                    for x in range(len(imgs)):
-                        im = imgs[x]
-                        d = maps[x]
-                        im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
-                        yield (im, d)
+                    yield from augment(ds, img_shape=img_shape)
 
+                img = img.reshape(img_shape, order='F')
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
                 
                 yield (img, d_map) 

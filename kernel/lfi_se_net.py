@@ -64,18 +64,15 @@ class DepthCueExtractor(tf.keras.Model):
         '''
         extracts relative size through combined views
         '''
-        center = self.angres // 2
-        center_view = lfi[center, :, center, :, :]
-         
+        
         return f_map
 
     def height_in_plane(self, lfi):
         '''
         extracts height in plane from the center view
         '''
-        center = self.angres // 2
-        extracted_img = lfi * self.height_kernel
-        return f_map
+        f_map = lfi * self.height_mask
+        return f_map 
     
     def call(self, input_tensor):
         r_size = relative_size(input_tensor)
@@ -96,27 +93,8 @@ class CostConstructor(tf.keras.Model):
         self.cost = self.build_cost(f_maps, self.mask)
         self.disp = self.aggregate(self.cost)
 
-    def aggregate(self, cost_volume, n_filters=24):
-        # aggregate the cost volume by extracting relevant features
-        X = layers.Conv3D(n_filters, kernel_size=(1,1,1), padding='same')(cost_volume)
-        X = layers.BatchNormalization()(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.LeakyReLU()(X)
-    
+    def warp(img, disp, du, dv, x_base, y_base):
+        return None
     
     def occlusion_mask(self, lfi, disp):
         # create mask to handle occlusions
@@ -135,6 +113,26 @@ class CostConstructor(tf.keras.Model):
         self.disp = self.aggregate(cost)
         return self.disp
 
+def aggregate(cost_volume, n_filters=24):
+    # aggregate the cost volume by extracting relevant features
+    X = layers.Conv3D(filters=1, kernel_size=(1,1,1), padding='same')(cost_volume)
+    X = layers.BatchNormalization()(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=n_filters//2, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.BatchNormalization()(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=n_filters, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.BatchNormalization()(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=n_filters, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.BatchNormalization()(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=n_filters, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.BatchNormalization()(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=n_filters, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.BatchNormalization()(X)
+    X = layers.LeakyReLU()(X)
 
 def LF_conv_block(inputs, n_filters=4, 
                     filter_size=(3,3), n_sais=49, 
@@ -165,11 +163,12 @@ def build_model(input_shape, summary=True, n_sais=49):
     build the model
     param output_shape: size of the 2D depth map
     '''
-
     # initial input and convolution + layer normalization
     inputs = keras.Input(shape=input_shape, name='lfse_model_input')
+
     X = layers.Conv3D(filters=3, kernel_size=(3,3,3), padding='same')(inputs) 
     
+    # initial feature extraction
     X = LF_conv_block(X, n_filters=3, filter_size=(3,3),img_shape=input_shape, n_sais=n_sais)
 
     X = layers.MaxPooling3D(pool_size=(2,1,2))(X)
@@ -195,6 +194,8 @@ def build_model(input_shape, summary=True, n_sais=49):
     #X = DepthCueExtractor(h=X.shape[1], w=X.shape[3], 
     #                    angres = input_shape[0])(X)
 
+    #X = aggregate(X)
+
     X = LFSEBlock(n_filters=24, filter_size=(3,3))(X)
     X = layers.BatchNormalization()(X)
     
@@ -208,7 +209,8 @@ def build_model(input_shape, summary=True, n_sais=49):
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)
 
     X = tf.squeeze(layers.Dense(1, activation='linear')(X))
-    
+
+
     model = models.Model(inputs=inputs, outputs=X)   
  
     if summary:
