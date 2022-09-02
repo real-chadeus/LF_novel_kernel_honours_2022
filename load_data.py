@@ -269,7 +269,8 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
                 
                 if augment_sintel:
                     ds = (img, d_map)
-                    yield from augment(ds, img_shape=img_shape)
+                    yield from augment(ds, img_shape=img_shape, num_flips=5, num_rot=5, num_contrast=5,
+                                            num_noise=5, num_sat=5, num_bright=5)
 
                 img = img.reshape(img_shape, order='F')
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
@@ -294,7 +295,8 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
 
                 if augment_hci:
                     ds = (img, d_map)
-                    yield from augment(ds, img_shape=img_shape)
+                    yield from augment(ds, img_shape=img_shape, num_flips=5, num_rot=10, num_contrast=10,
+                                            num_noise=10, num_sat=10, num_bright=10)
 
                 img = img.reshape(img_shape, order='F')
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets

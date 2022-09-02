@@ -6,7 +6,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, C
 import tensorflow_addons as tfa
 import load_data
 import preprocessing.hci_dataset_tools.file_io as hci_io
-import kernel.lfi_se_net as se_net
+import model.model as net
 import tensorflow.keras.losses as losses
 import numpy as np
 from tqdm.keras import TqdmCallback
@@ -25,7 +25,7 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #tf.config.set_logical_device_configuration(
 #    physical_devices[0],
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
-save_path = 'models/'
+save_path = 'saved_models/'
 
 def step_decay(epoch):
     # learning rate schedule
@@ -48,7 +48,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.0001
+    lr = 0.000001
     loss = losses.MeanAbsoluteError()
     optimizer = Adam(learning_rate=lr)
     # model compile
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     # define model
     #input_shape = (7,512,7,512,3)
     input_shape = (9,436,9,436,3)
-    model = se_net.build_model(input_shape=input_shape, summary=True, 
+    model = net.build_model(input_shape=input_shape, summary=True, 
                                     n_sais=81)
     # validation dataset
     hci_val = load_data.load_hci(img_shape=input_shape, do_augment=False, 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=16, 
-            val_set=hci_val, epochs=10, model_name='hci_only1', 
+            val_set=hci_val, epochs=10, model_name='hci_only_nolfse_nodispnorm1', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()

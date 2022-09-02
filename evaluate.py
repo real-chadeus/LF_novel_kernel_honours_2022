@@ -5,13 +5,13 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
 import load_data
 import preprocessing.hci_dataset_tools.file_io as hci_io
-import kernel.lfi_se_net as se_net
+import model.model as net
 import tensorflow.keras.losses as losses
 import argparse
 import plots
 from custom_metrics import BadPix
 
-load_path = 'models/'
+load_path = 'saved_models/'
 input_shape = (9,436,9,436,3)
 hci = load_data.load_hci(img_shape=input_shape, use_disp=True)
 model = keras.models.load_model(load_path + 'model4', custom_objects={'BadPix': BadPix})
