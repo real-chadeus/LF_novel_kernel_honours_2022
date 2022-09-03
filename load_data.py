@@ -14,7 +14,8 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 data_path = '../../datasets'
 
 def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
-            num_noise=1, num_sat=1, num_bright=1, use_gen=True,
+            num_noise=1, num_sat=1, num_bright=1, num_gamma=1, 
+            num_hue=1, use_gen=True,
             img_shape=(9,436,9,436,3)):
     '''
     custom augment function
@@ -85,7 +86,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
 
     # random contrast
     for i in range(num_contrast):
-        factor = np.random.uniform(0,2)
+        factor = np.random.uniform(0,4)
         new_img = tf.image.adjust_contrast(img, contrast_factor=factor).numpy()
         new_disp = disp
         if use_gen:
@@ -98,7 +99,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
 
     # random saturation
     for i in range(num_sat):
-        factor = np.random.uniform(0,2)
+        factor = np.random.uniform(0,4)
         new_img = tf.image.adjust_saturation(img, saturation_factor=factor).numpy() 
         new_disp = disp
         if use_gen:
@@ -111,8 +112,34 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
 
     # random brightness
     for i in range(num_bright):
-        factor = np.random.uniform(0,2)
+        factor = np.random.uniform(0,4)
         new_img = tf.image.adjust_brightness(img, delta=factor).numpy()
+        new_disp = disp
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
+
+    # random gamma
+    for i in range(num_gamma):
+        factor = np.random.uniform(0,3)
+        new_img = tf.image.adjust_gamma(img, gamma=factor).numpy()
+        new_disp = disp
+        if use_gen:
+            new_img = new_img.reshape(img_shape, order='F')
+            new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
+            yield (new_img, new_disp)
+        else:
+            imgs.append(new_img)
+            imgs.append(new_disp)
+
+    # random hue
+    for i in range(num_hue):
+        factor = np.random.uniform(0,4)
+        new_img = tf.image.adjust_hu(img, delta=factor).numpy()
         new_disp = disp
         if use_gen:
             new_img = new_img.reshape(img_shape, order='F')
@@ -241,8 +268,8 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
     return dataset
     
 
-def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=True,
-                load_sintel=True, load_hci=True):
+def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=True,
+                load_sintel=True, load_hci=True, angres=9):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
     Loads in order of Sintel -> HCI
@@ -295,10 +322,16 @@ def dataset_gen(img_shape = (7,512,7,512,3), augment_sintel=True, augment_hci=Tr
 
                 if augment_hci:
                     ds = (img, d_map)
-                    yield from augment(ds, img_shape=img_shape, num_flips=5, num_rot=10, num_contrast=10,
-                                            num_noise=10, num_sat=10, num_bright=10)
+                    yield from augment(ds, img_shape=img_shape, num_flips=20, num_rot=20, num_contrast=20,
+                                            num_noise=20, num_sat=20, num_bright=20, num_gamma=20, num_hue=20)
 
                 img = img.reshape(img_shape, order='F')
+
+                center = angres//2
+                center_view = img[center, :, center, :, :] 
+                plt.imshow(center_view, interpolation='nearest')
+                plt.show()
+
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
                 
                 yield (img, d_map) 

@@ -5,6 +5,7 @@ from tensorflow.keras import backend as K
 import tensorflow as tf
 import numpy as np
 import einops
+import matplotlib.pyplot as plt
 
 class LFSEBlock(tf.keras.Model):
     '''
@@ -48,39 +49,84 @@ class LFSEBlock(tf.keras.Model):
 
         return tf.nn.relu(result)
 
+def LF_conv_block(inputs, n_filters=4, 
+                    filter_size=(3,3), n_sais=81, 
+                    stride=2, img_shape=(7,512,7,512,3)): 
+    '''
+    Simple convolution block for light field images.
+    Does convolution depthwise across the SAIs
+    #use: X = LF_conv_block(X, n_sais=n_sais, img_shape=input_shape)
+    '''
+    n_ang = int(np.sqrt(n_sais))
+    fmaps = [] # feature maps
+    X = inputs
+    if len(X.shape) == 6:
+        X1 = X[0,:,:,:,:]
+    else:
+        X1 = X
+    X1 = tf.reshape(X1, (img_shape[0] * img_shape[2], img_shape[1], img_shape[3], img_shape[-1]))
+    X1 = layers.DepthwiseConv2D(filter_size, strides=1, padding='same', input_shape=X.shape[2:], activation='relu')(X1) 
+    X1 = tf.reshape(X1, (n_ang, img_shape[1], n_ang, img_shape[3], img_shape[-1]))
+    fmaps.append(X1)
+    X = tf.squeeze(tf.stack(fmaps, axis=1))
+    X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
+    return X
+
 class DepthCueExtractor(tf.keras.Model):
     '''
     extracts monocular depth cue information
     '''
-    def __init__(self, h, w, angres):
-        super(CostConstructor, self).__init__(name='depth_cue_extractor')
+    def __init__(self, h, w, angres, n_filters):
+        super(DepthCueExtractor, self).__init__(name='depth_cue_extractor')
         self.h = h
         self.w = w
         self.angres = angres
-        self.size_mask = tf.ones((angres, h, angres, w, 1)) 
-        self.height_mask = tf.ones((angres, h, angres, w, 1)) 
+        self.n_filters = n_filters
+        self.size_mask = tf.ones((n_filters, w)) 
+        self.height_mask = tf.ones((n_filters, w)) 
 
-    def relative_size(self, lfi):
+    def relative_size(self, f_maps, center_view):
         '''
-        extracts relative size through combined views
+        extracts relative size through center view features
         '''
-        center = self.angres // 2 
-        center_view = lfi[center, :, center, :, :]
+        for i in range(self.n_filters):
+            curr_map = f_maps[:, :, :, i]
+            curr_map = tf.squeeze(curr_map)
+            size_vectors = tf.math.reduce_sum(curr_map, axis=0)  
+            size_vectors = size_vectors/tf.math.reduce_max(size_vectors)
+            self.size_mask[i] *= size_vectors
         return None
 
-    def height_in_plane(self, f_maps, center_view):
+    def height(self, f_maps, center_view):
         '''
         extracts height in plane from the feature map
         '''
-         
-        return result
+        for i in range(self.n_filters):
+            curr_map = f_maps[:, :, :, i]
+            curr_map = tf.squeeze(curr_map)
+            height_vectors = tf.math.reduce_mean(curr_map, axis=0))  
+            height_vectors = height_vectors/tf.math.reduce_max(height_vectors)
+            self.height_mask[i] *= height_vectors
     
     def call(self, lfi, f_map):
         center = self.angres // 2 
         center_view = lfi[center, :, center, :, :]
-        h_mask = height_in_plane(f_map, center_view) 
-        result = h_mask * lfi
-        return result
+        self.height(f_map, center_view)
+        self.relative_size(f_map, center_view)  
+        result = tf.ones(shape=(2*self.angres**2,self.h,self.w,3), 
+                            dtype=tf.float32)
+        for u in range(2*angres,step=2):
+            for v in range(2*angres,step=2):
+                view = lfi[u, :, v, :, :]
+                result1 = view * self.height_mask
+                result2 = view * self.size_mask
+                result[u+1, :, v+1, :, :] = result1  
+                result[u, :, v, :, :] = result2
+
+        result = layers.AveragePooling3D(pool_size=(2,1,2))(result) 
+        result = layers.LeakyReLU()(result)
+        result = layers.BatchNormalization()(result)
+        return lfi
 
 class OcclusionHandler(tf.keras.Model):
     '''
@@ -135,82 +181,84 @@ def aggregate(cost_volume, depth_cues=None, combine=False, n_filters=24):
     X = layers.Conv3D(filters=n_filters, kernel_size=(3,3,3), padding='same')(X)
     X = layers.BatchNormalization()(X)
     X = layers.LeakyReLU()(X)
+    
+    if combine:
+        # combine monocular depth cues with multi-view features 
+         
 
     X = tf.math.reduce_mean(X, axis=(0,2))
     X = layers.LeakyReLU()(X)
     X = layers.BatchNormalization()(X)
     return X
 
-def LF_conv_block(inputs, n_filters=4, 
-                    filter_size=(3,3), n_sais=81, 
-                    stride=2, img_shape=(7,512,7,512,3)): 
-    '''
-    Simple convolution block for light field images.
-    Does convolution depthwise across the SAIs
-    #use: X = LF_conv_block(X, n_sais=n_sais, img_shape=input_shape)
-    '''
-    n_ang = int(np.sqrt(n_sais))
-    fmaps = [] # feature maps
-    X = inputs
-    if len(X.shape) == 6:
-        X1 = X[0,:,:,:,:]
-    else:
-        X1 = X
-    X1 = tf.reshape(X1, (img_shape[0] * img_shape[2], img_shape[1], img_shape[3], img_shape[-1]))
-    X1 = layers.DepthwiseConv2D(filter_size, strides=1, padding='same', input_shape=X.shape[2:], activation='relu')(X1) 
-    X1 = tf.reshape(X1, (n_ang, img_shape[1], n_ang, img_shape[3], img_shape[-1]))
-    fmaps.append(X1)
-    X = tf.squeeze(tf.stack(fmaps, axis=1))
-    X = layers.Conv3D(n_filters, kernel_size=(3,3,3), padding='same')(X)
-    return X
 
-def feature_extractor(X, n_sais=81, monocular=False):
-
-    X = layers.Conv3D(filters=1, kernel_size=(9,1,9), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.BatchNormalization()(X)
-    X = layers.Conv3D(filters=2, kernel_size=(9,1,9), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.BatchNormalization()(X)
-    if monocular == False:
-        X = layers.AveragePooling3D(pool_size=(2,1,2))(X)
-    X = layers.Conv3D(filters=3, kernel_size=(6,1,6), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.BatchNormalization()(X)
-    X = layers.Conv3D(filters=3, kernel_size=(6,1,6), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.BatchNormalization()(X)
-
-    if monocular == False:
-        X = layers.AveragePooling3D(pool_size=(2,1,2))(X)
-        X = layers.Conv3D(filters=6, kernel_size=(3,1,3), padding='same')(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.Conv3D(filters=6, kernel_size=(3,1,3), padding='same')(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.Conv3D(filters=9, kernel_size=(3,1,3), padding='same')(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.BatchNormalization()(X)
-        X = layers.Conv3D(filters=9, kernel_size=(3,1,3), padding='same')(X)
-        X = layers.LeakyReLU()(X)
-        X = layers.BatchNormalization()(X)
+def feature_extractor(X, n_sais=81, monocular=False, input_shape=(436,436,3)):
 
     if monocular:
         # depth cue extraction
-        X = layers.Conv3D(filters=8, kernel_size=(3,1,3), padding='same')(X)
+        X = layers.Conv2D(filters=1, kernel_size=(1,1))(X)
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
-        X = layers.Conv3D(filters=16, kernel_size=(3,1,3), padding='same')(X)
+        X = layers.Conv2D(filters=2, kernel_size=(9,9))(X)
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
-        X = layers.Conv3D(filters=32, kernel_size=(3,1,3), padding='same')(X)
+        X = layers.Conv2D(filters=2, kernel_size=(9,9))(X)
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
-        X = layers.Conv3D(filters=64, kernel_size=(9,1,9), padding='same')(X)
+        X = layers.Conv2D(filters=3, kernel_size=(16,16))(X)
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
-        
+        X = layers.Conv2D(filters=3, kernel_size=(16,16))(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv2D(filters=9, kernel_size=(9,9))(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv2D(filters=9, kernel_size=(9,9))(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv2D(filters=32, kernel_size=(4,4))(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv2D(filters=32, kernel_size=(4,4))(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv2D(filters=64, kernel_size=(3,3))(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv2D(filters=64, kernel_size=(3,3))(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+
+    else:
+        # lfi feature extraction
+        X = layers.Conv3D(filters=1, kernel_size=(9,1,9), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv3D(filters=2, kernel_size=(9,1,9), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.AveragePooling3D(pool_size=(2,1,2))(X)
+        X = layers.Conv3D(filters=3, kernel_size=(6,1,6), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv3D(filters=3, kernel_size=(6,1,6), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.AveragePooling3D(pool_size=(2,1,2))(X)
+        X = layers.Conv3D(filters=6, kernel_size=(3,1,3), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv3D(filters=6, kernel_size=(3,1,3), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv3D(filters=9, kernel_size=(3,1,3), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
+        X = layers.Conv3D(filters=9, kernel_size=(3,1,3), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.BatchNormalization()(X)
 
     return X
 
@@ -224,20 +272,23 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9):
     X = layers.LeakyReLU()(inputs)
     X = layers.BatchNormalization()(X)
     
+    X = X[0,:,:,:,:]
     # monocular feature extraction from center view
     center = angres//2 
-    center_view = X[0,center,:,center,:]
+    center_view = X[center,:,center,:]
+    center_view = tf.expand_dims(center_view, axis=0)
     f_maps = feature_extractor(center_view, n_sais=n_sais, monocular=True)
     # monocular depth cue extraction
     depth_cues = DepthCueExtractor(h=X.shape[1], w=X.shape[3], 
-                        angres = input_shape[0])(X, f_maps)
+                        angres = input_shape[0], n_filters=64)(X, f_maps)
 
     # multi-view feature extraction across the entire lfi
-    X = X[0,:,:,:,:]
     X = feature_extractor(X, n_sais=n_sais)
     # occlusion masking 
     #X = OcclusionHandler()(X)
-    X = aggregate(X)
+
+    # aggregate multi-view and monocular features
+    X = aggregate(X, depth_cues=depth_cues, combine=True)
 
     X = layers.Dense(2048, activation='linear')(X)
     X = layers.LeakyReLU()(X)
