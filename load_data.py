@@ -289,6 +289,10 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                 # load images
                 img = Image.open(r_dir + frame + '_stacked.png')
                 img = np.asarray(img)
+                img = img.reshape((angres, h, angres, w, 3), order='F')
+                #img = np.moveaxis(img, 2,3)
+                #img = np.moveaxis(img, 0,2) 
+                print(img.shape)
 
                 # read + normalize disparity maps
                 d_map = np.load(r_dir + frame + '_center.npy')
@@ -299,7 +303,6 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                     yield from augment(ds, img_shape=img_shape, num_flips=5, num_rot=5, num_contrast=5,
                                             num_noise=5, num_sat=5, num_bright=5)
 
-                img = img.reshape(img_shape, order='F')
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
                 yield (img, d_map)
 
@@ -315,6 +318,12 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                 # load images
                 img = Image.open(r_dir + '/stacked/stacked.png')
                 img = np.asarray(img)
+                img = img.reshape(img_shape, order='F')
+                #img = np.moveaxis(img, 2,3)
+                #img = np.moveaxis(img, 0,2) 
+                #print(img.shape)
+                plt.imshow(img, interpolation='nearest')
+                plt.show()
 
                 # load and normalize disparity maps
                 d_map = np.load(r_dir + '/stacked/center_disp.npy')
@@ -325,7 +334,6 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                     yield from augment(ds, img_shape=img_shape, num_flips=20, num_rot=20, num_contrast=20,
                                             num_noise=20, num_sat=20, num_bright=20, num_gamma=20, num_hue=20)
 
-                img = img.reshape(img_shape, order='F')
 
                 center = angres//2
                 center_view = img[center, :, center, :, :] 

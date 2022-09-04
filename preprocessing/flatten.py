@@ -14,7 +14,6 @@ af = "x8" ###-
 img_format = "png"
 
 def select_sai_range(n_sai, target_n_sai=49):
-    n_sai = n_sai
     target_n_sai = target_n_sai
     mid = n_sai//2
     left = mid - target_n_sai//2
@@ -81,7 +80,7 @@ def flatten_hci(save_dir,read_dir,
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    left, right  = select_sai_range(n_sai=n_sai, target_n_sai=target_n_sai)
+    left, right = select_sai_range(n_sai=n_sai, target_n_sai=target_n_sai)
     print(f'left:{left}, right: {right}')
     i = 0
     j = 0
@@ -189,15 +188,15 @@ if __name__ == "__main__":
     data_path = '../../../datasets'
     start = time.time()
 
-    sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
-    for d in sintel_r_dirs:
-        r_dir = d.path + '/'
-        s_dir = r_dir + 'stacked/'
-        print('read dir: ', r_dir)
-        print('save dir: ', s_dir)
-        flatten_sintel(save_dir = s_dir,
-                        read_dir = r_dir,
-                        target_n_sai=81, img_size=436)
+    #sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
+    #for d in sintel_r_dirs:
+    #    r_dir = d.path + '/'
+    #    s_dir = r_dir + 'stacked/'
+    #    print('read dir: ', r_dir)
+    #    print('save dir: ', s_dir)
+    #    flatten_sintel(save_dir = s_dir,
+    #                    read_dir = r_dir,
+    #                    target_n_sai=81, img_size=436)
 
     hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
     for s in hci_folder:
@@ -210,7 +209,7 @@ if __name__ == "__main__":
             print('save dir: ', s_dir)
             flatten_hci(save_dir = s_dir, 
                             read_dir = r_dir,
-                            n_sai = 80, target_n_sai=81, img_size = 436)
+                            n_sai=81,target_n_sai=81, img_size = 512)
         
     end = time.time()
     print('time to flatten: ', end-start)

@@ -48,7 +48,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.000001
+    lr = 0.0001
     loss = losses.MeanAbsoluteError()
     optimizer = Adam(learning_rate=lr)
     # model compile
@@ -102,11 +102,17 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 
 
 if __name__ == "__main__":
-    # define model
-    #input_shape = (7,512,7,512,3)
-    input_shape = (9,436,9,436,3)
+   
+    # initial parameters 
+    batch_size = 16
+    #input_shape = (512, 512, 9, 9, 3)
+    #h = input_shape[0]
+    #w = input_shape[1]
+    #angres = input_shape[2]
+    input_shape = (81,436,436,3)
+
     model = net.build_model(input_shape=input_shape, summary=True, 
-                                    n_sais=81)
+                                    n_sais=81, batch_size=batch_size)
     # validation dataset
     hci_val = load_data.load_hci(img_shape=input_shape, do_augment=False, 
                                 use_tf_ds=False, use_disp=True)
@@ -115,7 +121,7 @@ if __name__ == "__main__":
     
     # training
     start = time.time()
-    train(model=model, input_shape=input_shape, batch_size=16, 
+    train(model=model, input_shape=input_shape, batch_size=batch_size, 
             val_set=hci_val, epochs=10, model_name='hci_only_monocularcues', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
