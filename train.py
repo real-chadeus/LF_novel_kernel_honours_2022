@@ -75,16 +75,16 @@ def train(model, input_shape=(), dataset=(), val_set=[],
         val = val_set 
         gen = functools.partial(load_data.dataset_gen, input_shape, 
                                 load_sintel=load_sintel, load_hci=load_hci,
-                                augment_sintel=augment_sintel, augment_hci=augment_hci)
+                                augment_sintel=augment_sintel, augment_hci=augment_hci,
+                                batch_size=batch_size)
         #def data_gen(): 
         #    for i in range(train_data.shape[0]):
         #        yield train_data[i], train_labels[i]  
         training = tf.data.Dataset.from_generator(gen,
-              output_signature=(tf.TensorSpec(shape=(1,) + input_shape, dtype=tf.int8),
-                                tf.TensorSpec(shape=(input_shape[1], input_shape[3]), dtype=tf.float32)))
+              output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
+                                tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
-        model.fit(x=training,batch_size=batch_size, 
-                    epochs=epochs, validation_data=val,
+        model.fit(x=training, epochs=epochs, validation_data=val,
                     validation_batch_size=1, 
                     callbacks=[TqdmCallback(verbose=2), 
                                 checkpoint, logger])

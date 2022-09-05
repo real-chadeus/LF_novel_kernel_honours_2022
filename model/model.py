@@ -8,7 +8,6 @@ import einops
 import matplotlib.pyplot as plt
 from model.conv4d import Conv4D
 
-
 class DepthCueExtractor(tf.keras.Model):
     '''
     extracts monocular depth cue information
@@ -23,59 +22,61 @@ class DepthCueExtractor(tf.keras.Model):
         self.height_mask = tf.ones((batch_size, n_filters, h)) 
         self.batch_size = batch_size
 
-    def relative_size(self, f_maps, center_view):
+    def relative_size(self, f_maps):
         '''
         extracts relative size through center view features
         gets the reduce sum of the pixel values of the current feature map
         '''
-        masks = []
+        masks = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
         for b in range(self.batch_size):
-            mask_op = []
+            mask_op = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
                 curr_map = f_maps[b, :, :, i]
                 curr_map = tf.squeeze(curr_map)
                 size_weight = tf.math.reduce_sum(curr_map)  
                 temp = self.size_mask[b, i] * size_weight
-                mask_op.append(temp)
-            masks.append(mask_op)
-        self.size_mask = tf.convert_to_tensor(masks, dtype='float32')
+                mask_op.write(i, temp)
+            masks.write(b, mask_op.stack())
+        self.size_mask = masks.stack()
 
-    def height(self, f_maps, center_view):
+    def height(self, f_maps):
         '''
         extracts height in plane from the feature map
         '''
-        masks = []
+        masks = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
         for b in range(self.batch_size):
-            mask_op = []
+            mask_op = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
                 curr_map = f_maps[b, :, :, i]
                 curr_map = tf.squeeze(curr_map)
                 height_vectors = tf.math.reduce_mean(curr_map, axis=0)  
                 height_vectors = height_vectors/tf.math.reduce_max(height_vectors)
                 temp = self.height_mask[b, i, :] * height_vectors
-                mask_op.append(temp)
-            masks.append(mask_op)
-        self.height_mask = tf.convert_to_tensor(masks, dtype='float32')
-    
-    def call(self, lfi, f_map):
-        center = self.angres // 2 
-        center_view = lfi[center, :, center, :, :]
-        self.height(f_map, center_view)
-        self.relative_size(f_map, center_view)  
-        results = []
+                mask_op.write(i, temp)
+            masks.write(b, mask_op.stack())
+        return masks.stack() 
+
+    def call(self, lfi, f_maps):
+        h_mask = self.height(f_maps)
+        #self.relative_size(f_maps)  
+        results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
         for b in range(self.batch_size):
-            result = []
+            result = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
             for i in range(self.n_filters):
-                s_feat = lfi[b, :, :, :, :] * self.size_mask[b, i]
-                h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) * self.height_mask[b, i, :]
+                #s_feat = lfi[b, :, :, :, :] * self.size_mask[b, i]
+                h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) * h_mask[b, i, :]
                 h_feat = tf.transpose(h_feat, perm=[0,3,2,1])
-                result.append(h_feat)
-            results.append(result)
+                result.write(i, h_feat)
+            results.write(b, result.stack())
         
-        results = tf.convert_to_tensor(results)
-        results = tf.transpose(results, perm=[0,2,3,4,5,1])
-        results = layers.LeakyReLU()(results)
-        results = layers.BatchNormalization()(results)
+        results = results.stack()
+        # aggregate across channels
+        results = tf.ensure_shape(results, 
+                                 shape=[self.batch_size,
+                                        self.n_filters,
+                                        ] + lfi.shape[1:])
+        results = tf.reduce_mean(results, axis=5)
+        results = tf.transpose(results, perm=[0,2,3,4,1])
         return results
 
 class OcclusionHandler(tf.keras.Model):
@@ -140,6 +141,14 @@ def aggregate(cost_volume, depth_cues=None, combine=False, n_filters=24):
         X = depth_cues * X 
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
+
+    X = layers.AveragePooling3D(pool_size=(9,1,1))(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.BatchNormalization()(X)
+    X = layers.AveragePooling3D(pool_size=(9,1,1))(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.BatchNormalization()(X)
+    X = tf.squeeze(X)
 
     return X
 
@@ -214,13 +223,14 @@ def feature_extractor(X, n_sais=81, monocular=False, input_shape=(436,436,3)):
 
     return X
 
+
 def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     '''
     build the model
     param output_shape: size of the 2D depth map
     '''
     # initial input mapping
-    inputs = keras.Input(shape=input_shape, name='lfse_model_input')
+    inputs = keras.Input(shape=input_shape, name='lfse_model_input', batch_size=batch_size)
     X = layers.LeakyReLU()(inputs)
     X = layers.BatchNormalization()(X)
     
@@ -239,7 +249,7 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     #X = OcclusionHandler()(X)
 
     # aggregate multi-view and monocular features
-    X = aggregate(X, depth_cues=depth_cues, combine=True)
+    X = aggregate(X, depth_cues=depth_cues, combine=True, n_filters=60)
 
     X = layers.Dense(2048, activation='linear')(X)
     X = layers.LeakyReLU()(X)
@@ -247,8 +257,8 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     X = layers.Dense(2048, activation='linear')(X)
     X = layers.LeakyReLU()(X)
     X = layers.Dense(4096, activation='sigmoid')(X)
+    #X = layers.BatchNormalization()(X)
 
-    X = tf.expand_dims(X, axis=0)
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)
 
     X = tf.squeeze(layers.Dense(1, activation='linear')(X))

@@ -269,7 +269,7 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
     
 
 def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=True,
-                load_sintel=True, load_hci=True, angres=9):
+                load_sintel=True, load_hci=True, angres=9, batch_size=16):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
     Loads in order of Sintel -> HCI
@@ -322,8 +322,9 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                 #img = np.moveaxis(img, 2,3)
                 #img = np.moveaxis(img, 0,2) 
                 #print(img.shape)
-                plt.imshow(img, interpolation='nearest')
-                plt.show()
+                #center = img[angres**2//2, :, :, :]
+                #plt.imshow(center, interpolation='nearest')
+                #plt.show()
 
                 # load and normalize disparity maps
                 d_map = np.load(r_dir + '/stacked/center_disp.npy')
