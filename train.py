@@ -104,7 +104,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 if __name__ == "__main__":
    
     # initial parameters 
-    batch_size = 16
+    batch_size = 4
     #input_shape = (512, 512, 9, 9, 3)
     #h = input_shape[0]
     #w = input_shape[1]
