@@ -71,7 +71,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
     
     # Gaussian noise
     for i in range(num_noise):
-        noise = np.random.normal(loc=0.0, scale=1, size=img.shape) 
+        noise = np.random.normal(loc=0.0, scale=3, size=img.shape) 
         new_img = img + noise
         new_disp = disp
         if use_gen:
@@ -83,7 +83,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
 
     # random contrast
     for i in range(num_contrast):
-        factor = np.random.uniform(0,4)
+        factor = np.random.uniform(-3,3)
         new_img = tf.image.adjust_contrast(img, contrast_factor=factor).numpy()
         new_disp = disp
         if use_gen:
@@ -95,7 +95,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
 
     # random saturation
     for i in range(num_sat):
-        factor = np.random.uniform(0,4)
+        factor = np.random.uniform(-3,3)
         new_img = tf.image.adjust_saturation(img, saturation_factor=factor).numpy() 
         new_disp = disp
         if use_gen:
@@ -107,7 +107,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
 
     # random brightness
     for i in range(num_bright):
-        factor = np.random.uniform(0,4)
+        factor = np.random.uniform(-1,1)
         new_img = tf.image.adjust_brightness(img, delta=factor).numpy()
         new_disp = disp
         if use_gen:
@@ -131,7 +131,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
 
     # random hue
     for i in range(num_hue):
-        factor = np.random.uniform(0,4)
+        factor = np.random.uniform(-1,1)
         new_img = tf.image.adjust_hue(img, delta=factor).numpy()
         new_disp = disp
         if use_gen:
@@ -344,7 +344,8 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                     imgs = []
                     maps = []
 
-                data.append((img, d_map))
+                imgs.append(img)
+                maps.append(d_map)
 
 
 

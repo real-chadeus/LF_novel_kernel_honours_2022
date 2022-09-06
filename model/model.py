@@ -12,14 +12,11 @@ class DepthCueExtractor(tf.keras.Model):
     '''
     extracts monocular depth cue information
     '''
-    def __init__(self, h, w, angres, n_filters, batch_size):
+    def __init__(self, h, w, n_filters, batch_size):
         super(DepthCueExtractor, self).__init__(name='depth_cue_extractor')
         self.h = h
         self.w = w
-        self.angres = angres
         self.n_filters = n_filters
-        self.size_mask = tf.ones((batch_size, n_filters)) 
-        self.height_mask = tf.ones((batch_size, n_filters, h)) 
         self.batch_size = batch_size
 
     def relative_size(self, f_maps):
@@ -34,10 +31,11 @@ class DepthCueExtractor(tf.keras.Model):
                 curr_map = f_maps[b, :, :, i]
                 curr_map = tf.squeeze(curr_map)
                 size_weight = tf.math.reduce_sum(curr_map)  
-                temp = self.size_mask[b, i] * size_weight
-                mask_op.write(i, temp)
+                mask_op.write(i, size_weight)
             masks.write(b, mask_op.stack())
-        self.size_mask = masks.stack()
+        masks = masks.stack()
+        masks = tf.ensure_shape(masks, shape=[self.batch_size, self.h])
+        return masks
 
     def height(self, f_maps):
         '''
@@ -51,8 +49,7 @@ class DepthCueExtractor(tf.keras.Model):
                 curr_map = tf.squeeze(curr_map)
                 height_vectors = tf.math.reduce_mean(curr_map, axis=0)  
                 height_vectors = height_vectors/tf.math.reduce_max(height_vectors)
-                temp = self.height_mask[b, i, :] * height_vectors
-                mask_op = mask_op.write(i, temp)
+                mask_op = mask_op.write(i, height_vectors)
             masks = masks.write(b, mask_op.stack())
         masks = masks.stack()
         masks = tf.ensure_shape(masks, 
@@ -133,14 +130,23 @@ def aggregate(cost_volume, depth_cues=None, combine=False, n_filters=24):
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
 
-    X = layers.AveragePooling3D(pool_size=(9,1,1))(X)
-    X = layers.AveragePooling3D(pool_size=(9,1,1))(X)
     X = layers.LeakyReLU()(X)
     X = layers.BatchNormalization()(X)
     X = tf.squeeze(X)
 
     return X
 
+def angular_aggregate(X):
+    '''aggregation over angular axes'''
+    X = layers.Conv3D(filters=3, kernel_size=(3,1,1), padding='same')(X)
+    X = layers.Conv3D(filters=3, kernel_size=(3,1,1), padding='same')(X)
+    X = layers.AveragePooling3D(pool_size=(9,1,1))(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.BatchNormalization()(X)
+    X = layers.Conv3D(filters=3, kernel_size=(3,1,1), padding='same')(X)
+    X = layers.Conv3D(filters=3, kernel_size=(3,1,1), padding='same')(X)
+    X = layers.AveragePooling3D(pool_size=(9,1,1))(X)
+    return X
 
 def feature_extractor(X, n_sais=81, monocular=False, input_shape=(436,436,3)):
 
@@ -158,7 +164,7 @@ def feature_extractor(X, n_sais=81, monocular=False, input_shape=(436,436,3)):
         X = layers.Conv2D(filters=24, kernel_size=(4,4), padding='same')(X)
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
-        X = layers.Conv2D(filters=60, kernel_size=(3,3), padding='same')(X)
+        X = layers.Conv2D(filters=36, kernel_size=(3,3), padding='same')(X)
         X = layers.LeakyReLU()(X)
         X = layers.BatchNormalization()(X)
 
@@ -197,10 +203,10 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     center = n_sais//2 
     center_view = X[:,center,:,:,:]
     f_maps = feature_extractor(center_view, n_sais=n_sais, monocular=True)
+    X = angular_aggregate(X)
     # monocular depth cue extraction
-    #depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
-    #                    angres=int(np.sqrt(input_shape[1])), n_filters=24,
-    #                                batch_size=batch_size)(X, f_maps)
+    depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
+                        n_filters=36, batch_size=batch_size)(X, f_maps)
 
     # multi-view feature extraction across the entire lfi
     X = feature_extractor(X, n_sais=n_sais)
@@ -208,20 +214,21 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     #X = OcclusionHandler()(X)
 
     # aggregate multi-view and monocular features
-    X = aggregate(X, n_filters=24)
+    X = aggregate(X, depth_cues=depth_cues, combine=True ,n_filters=36)
+    #X = aggregate(X)
 
     X = layers.Dense(2048, activation='linear')(X)
     X = layers.LeakyReLU()(X)
     X = layers.Dense(4096, activation='sigmoid')(X)
-    X = layers.Dense(2048, activation='linear')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.Dense(4096, activation='sigmoid')(X)
+    X = layers.Dense(1024, activation='linear')(X)
+    X = layers.LeakyReLU()(X)
     X = layers.BatchNormalization()(X)
     X = layers.Conv2DTranspose(filters=1, strides=4, kernel_size=(3,3), padding='same')(X)
 
     X = tf.squeeze(layers.Dense(1, activation='linear')(X))
 
-    model = models.Model(inputs=inputs, outputs=X)   
+    model = models.Model(inputs=inputs, outputs=X) 
  
     if summary:
         model.summary()
