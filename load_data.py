@@ -132,7 +132,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
     # random hue
     for i in range(num_hue):
         factor = np.random.uniform(0,4)
-        new_img = tf.image.adjust_hu(img, delta=factor).numpy()
+        new_img = tf.image.adjust_hue(img, delta=factor).numpy()
         new_disp = disp
         if use_gen:
             new_img = new_img.reshape(img_shape, order='F')
