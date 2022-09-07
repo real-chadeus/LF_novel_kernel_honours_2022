@@ -38,7 +38,8 @@ def step_decay(epoch):
 def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', 
             use_gen=True, load_model=False, load_sintel=True,
-            load_hci=True, augment_sintel=True, augment_hci=True):
+            load_hci=True, augment_sintel=True, augment_hci=True,
+            n_batches=1500):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -76,7 +77,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
         gen = functools.partial(load_data.dataset_gen, input_shape, 
                                 load_sintel=load_sintel, load_hci=load_hci,
                                 augment_sintel=augment_sintel, augment_hci=augment_hci,
-                                batch_size=batch_size)
+                                batch_size=batch_size, batches=n_batches)
         #def data_gen(): 
         #    for i in range(train_data.shape[0]):
         #        yield train_data[i], train_labels[i]  
@@ -85,7 +86,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
                                 tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
         model.fit(x=training, epochs=epochs, validation_data=val,
-                    validation_batch_size=1, 
+                    validation_batch_size=batch_size, 
                     callbacks=[TqdmCallback(verbose=2), 
                                 checkpoint, logger])
     else:
@@ -105,6 +106,7 @@ if __name__ == "__main__":
    
     # initial parameters 
     batch_size = 4
+    n_batches = 1500
     #input_shape = (512, 512, 9, 9, 3)
     #h = input_shape[0]
     #w = input_shape[1]
@@ -124,7 +126,8 @@ if __name__ == "__main__":
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
             val_set=hci_val, epochs=10, model_name='hci_only_monocularcues', 
             use_gen=True, load_model=False, load_sintel=False,
-            load_hci=True, augment_sintel=True, augment_hci=True)
+            load_hci=True, augment_sintel=True, augment_hci=True,
+            n_batches=n_batches)
     end = time.time()
     print('time to train: ', end-start)
 

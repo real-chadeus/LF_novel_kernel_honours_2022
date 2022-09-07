@@ -262,15 +262,13 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
     
 
 def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=True,
-                load_sintel=True, load_hci=True, angres=9, batch_size=16):
+                load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
     Loads in order of Sintel -> HCI
     For training only.
     '''
 
-    imgs = []
-    maps = []
 
     if load_sintel:
         sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
@@ -303,49 +301,60 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                 yield (img, d_map)
 
     if load_hci:
-        hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
-        for s in hci_folder:
-            sub_dir = s.path
-            hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
-            for d in hci_r_dirs:
-                r_dir = d.path
-                if 'test' in r_dir:
-                    continue
-                # load images
-                img = Image.open(r_dir + '/stacked/stacked.png')
-                img = np.asarray(img)
-                img = img.reshape(img_shape, order='F')
-                #img = np.moveaxis(img, 2,3)
-                #img = np.moveaxis(img, 0,2) 
-                #print(img.shape)
-                #center = img[angres**2//2, :, :, :]
-                #plt.imshow(center, interpolation='nearest')
-                #plt.show()
+        imgs = []
+        maps = []
+        count = 0
+        while True:
+            hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
+            for s in hci_folder:
+                sub_dir = s.path
+                hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
+                for d in hci_r_dirs:
+                    r_dir = d.path
+                    if 'test' in r_dir:
+                        continue
+                    # load images
+                    img = Image.open(r_dir + '/stacked/stacked.png')
+                    img = np.asarray(img)
+                    img = img.reshape(img_shape, order='F')
+                    #img = np.moveaxis(img, 2,3)
+                    #img = np.moveaxis(img, 0,2) 
+                    #center = img[angres**2//2, :, :, :]
+                    #plt.imshow(center, interpolation='nearest')
+                    #plt.show()
 
-                # load and normalize disparity maps
-                d_map = np.load(r_dir + '/stacked/center_disp.npy')
-                d_map = d_map/np.abs(np.amax(d_map))
+                    # load and normalize disparity maps
+                    d_map = np.load(r_dir + '/stacked/center_disp.npy')
+                    d_map = d_map/np.abs(np.amax(d_map))
 
-                if augment_hci:
-                    ds = (img, d_map)
-                    for im, m in augment(ds, img_shape=img_shape, num_flips=20, num_rot=20, num_contrast=20,
-                                               num_noise=20, num_sat=20, num_bright=20, num_gamma=20, num_hue=20):
-                        if len(imgs) < batch_size:
-                            imgs.append(im)
-                            maps.append(m) 
+                    if augment_hci:
+                        ds = (img, d_map)
+                        for im, m in augment(ds, img_shape=img_shape, num_flips=20, num_rot=20, num_contrast=20,
+                                                   num_noise=20, num_sat=20, num_bright=20, num_gamma=20, num_hue=20):
+                            if len(imgs) < batch_size:
+                                imgs.append(im)
+                                maps.append(m) 
 
-                        if len(imgs) == batch_size:
-                            yield (np.asarray(imgs), np.asarray(maps))
-                            imgs = []
-                            maps = []
+                            if len(imgs) == batch_size:
+                                yield (np.asarray(imgs), np.asarray(maps))
+                                count += 1
+                                imgs = []
+                                maps = []
+                            
+                            if count >= batches:
+                                return
 
-                if len(imgs) == batch_size:
-                    yield (np.asarray(imgs), np.asarray(maps))
-                    imgs = []
-                    maps = []
+                    if len(imgs) == batch_size:
+                        yield (np.asarray(imgs), np.asarray(maps))
+                        count += 1
+                        imgs = []
+                        maps = []
 
-                imgs.append(img)
-                maps.append(d_map)
+                    if count >= batches:
+                        return
+
+                    imgs.append(img)
+                    maps.append(d_map)
 
 
 
