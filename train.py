@@ -49,7 +49,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.0001
+    lr = 0.0005
     loss = losses.MeanAbsoluteError()
     optimizer = Adam(learning_rate=lr)
     # model compile
@@ -62,14 +62,15 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 
     # checkpoint
     checkpoint = ModelCheckpoint(filepath = save_path + model_name, monitor='val_mean_squared_error',
-            save_best_only=True, save_weights_only=False, verbose=1, mode='auto')
+            save_best_only=True, save_weights_only=False, verbose=1, mode='max')
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
     tqdm_callback = tfa.callbacks.TQDMProgressBar()
     #lr_schedule = LearningRateScheduler(step_decay, verbose=1)
 
     if load_model:
-        model = keras.models.load_model(save_path + model_name, custom_objects={'BadPix': BadPix})
+        custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
+        model = keras.models.load_model(save_path + model_name, custom_objects=custom_metrics)
 
     # train model
     if use_gen:
@@ -77,7 +78,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
         gen = functools.partial(load_data.dataset_gen, input_shape, 
                                 load_sintel=load_sintel, load_hci=load_hci,
                                 augment_sintel=augment_sintel, augment_hci=augment_hci,
-                                batch_size=batch_size, batches=n_batches)
+                                batch_size=batch_size)
         #def data_gen(): 
         #    for i in range(train_data.shape[0]):
         #        yield train_data[i], train_labels[i]  
@@ -105,13 +106,13 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 if __name__ == "__main__":
    
     # initial parameters 
-    batch_size = 4
-    n_batches = 1500
+    batch_size = 3
+    #n_batches = 1500
     #input_shape = (512, 512, 9, 9, 3)
     #h = input_shape[0]
     #w = input_shape[1]
     #angres = input_shape[2]
-    input_shape = (81,436,436,3)
+    input_shape = (81,512,512,3)
 
     model = net.build_model(input_shape=input_shape, summary=True, 
                                     n_sais=81, batch_size=batch_size)
@@ -124,10 +125,9 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=10, model_name='hci_only_monocularcues', 
+            val_set=hci_val, epochs=25, model_name='hci_only_0.0005lr', 
             use_gen=True, load_model=False, load_sintel=False,
-            load_hci=True, augment_sintel=True, augment_hci=True,
-            n_batches=n_batches)
+            load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
     print('time to train: ', end-start)
 
