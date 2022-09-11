@@ -8,6 +8,7 @@ import load_data
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import model.model as net
 import tensorflow.keras.losses as losses
+from keras import backend as K
 import numpy as np
 from tqdm.keras import TqdmCallback
 import os
@@ -27,19 +28,10 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
 save_path = 'saved_models/'
 
-def step_decay(epoch):
-    # learning rate schedule
-    factor = 1
-    if epoch >= 10: factor = 0.1
-    if epoch >= 15: factor = 0.01
-    return lr * factor
-
-
 def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', 
             use_gen=True, load_model=False, load_sintel=True,
-            load_hci=True, augment_sintel=True, augment_hci=True,
-            n_batches=1500):
+            load_hci=True, augment_sintel=True, augment_hci=True):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -49,9 +41,14 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.0005
+    #lr = 0.0001
+    lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=0.0001,
+        decay_steps=5000,
+        decay_rate=0.95)
+
     loss = losses.MeanAbsoluteError()
-    optimizer = Adam(learning_rate=lr)
+    optimizer = Adam(learning_rate=lr_schedule)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
@@ -61,8 +58,8 @@ def train(model, input_shape=(), dataset=(), val_set=[],
                             ])
 
     # checkpoint
-    checkpoint = ModelCheckpoint(filepath = save_path + model_name, monitor='val_mean_squared_error',
-            save_best_only=True, save_weights_only=False, verbose=1, mode='max')
+    checkpoint = ModelCheckpoint(filepath = save_path + model_name, monitor='val_BadPix7',
+            save_best_only=True, save_weights_only=False, verbose=1, mode='min')
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
     tqdm_callback = tfa.callbacks.TQDMProgressBar()
@@ -70,7 +67,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 
     if load_model:
         custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
-        model = keras.models.load_model(save_path + model_name, custom_objects=custom_metrics)
+        model = keras.models.load_model(save_path + model_name, custom_objects={'BadPix': BadPix})
 
     # train model
     if use_gen:
@@ -106,7 +103,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 if __name__ == "__main__":
    
     # initial parameters 
-    batch_size = 3
+    batch_size = 1
     #n_batches = 1500
     #input_shape = (512, 512, 9, 9, 3)
     #h = input_shape[0]
@@ -125,9 +122,9 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=25, model_name='hci_only_0.0005lr', 
-            use_gen=True, load_model=False, load_sintel=False,
-            load_hci=True, augment_sintel=True, augment_hci=True)
+            val_set=hci_val, epochs=25, model_name='bothds_softmax', 
+            use_gen=True, load_model=False, load_sintel=True,
+            load_hci=True, augment_sintel=False, augment_hci=True)
     end = time.time()
     print('time to train: ', end-start)
 

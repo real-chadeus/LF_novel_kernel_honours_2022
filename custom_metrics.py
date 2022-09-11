@@ -20,7 +20,7 @@ class BadPix(tf.keras.metrics.Metric):
         ''' 
         diff_map = tf.math.abs(tf.math.subtract(y_true, y_pred))
         n_badpix = tf.math.reduce_sum(tf.where(diff_map > self.threshold, 1, 0))
-        badpix = n_badpix/tf.size(diff_map) 
+        badpix = n_badpix/tf.size(y_true) 
         self.badpix = badpix
 
     def get_config(self):

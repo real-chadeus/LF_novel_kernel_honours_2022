@@ -226,6 +226,7 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
             # load images
             img = Image.open(r_dir + frame + '_stacked.png')
             img = np.asarray(img)
+            img = img.reshape(img_shape, order='F')
 
             # read + normalize disparity maps
             d_map = np.load(r_dir + frame + '_center.npy')
@@ -246,7 +247,6 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
                 for d in maps:
                     labels.append(d)
 
-            img = img.reshape(img_shape, order='F')
             if use_tf_ds:
                 img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
 
@@ -271,6 +271,8 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
 
 
     if load_sintel:
+        imgs = []
+        maps = []
         sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
         for d in sintel_r_dirs:
             r_dir = d.path + '/stacked/'
@@ -284,21 +286,38 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                 # load images
                 img = Image.open(r_dir + frame + '_stacked.png')
                 img = np.asarray(img)
-                img = img.reshape((angres, h, angres, w, 3), order='F')
+                img = img.reshape(img_shape, order='F')
+                #img = img.reshape((angres, h, angres, w, 3), order='F')
                 #img = np.moveaxis(img, 2,3)
                 #img = np.moveaxis(img, 0,2) 
 
                 # read + normalize disparity maps
                 d_map = np.load(r_dir + frame + '_center.npy')
-                d_map = d_map/np.abs(np.amax(d_map))
+                #d_map = d_map/np.abs(np.amax(d_map))
+                if np.max(d_map) > 1:
+                    d_map = d_map/10.0 
                 
                 if augment_sintel:
                     ds = (img, d_map)
-                    yield from augment(ds, img_shape=img_shape, num_flips=5, num_rot=5, num_contrast=5,
-                                            num_noise=5, num_sat=5, num_bright=5)
+                    for im, m in augment(ds, img_shape=img_shape, num_flips=1, num_rot=2, num_contrast=2,
+                                               num_noise=3, num_sat=2, num_bright=2, num_gamma=2, num_hue=0):
+                        if len(imgs) < batch_size:
+                            imgs.append(im)
+                            maps.append(m) 
 
-                img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
-                yield (img, d_map)
+                        if len(imgs) == batch_size:
+                            yield (np.asarray(imgs), np.asarray(maps))
+                            imgs = []
+                            maps = []
+
+                if len(imgs) == batch_size:
+                    yield (np.asarray(imgs), np.asarray(maps))
+                    imgs = []
+                    maps = []
+
+                imgs.append(img)
+                maps.append(d_map)
+
 
     if load_hci:
         imgs = []
@@ -327,8 +346,8 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
 
                 if augment_hci:
                     ds = (img, d_map)
-                    for im, m in augment(ds, img_shape=img_shape, num_flips=20, num_rot=20, num_contrast=20,
-                                               num_noise=20, num_sat=20, num_bright=20, num_gamma=20, num_hue=20):
+                    for im, m in augment(ds, img_shape=img_shape, num_flips=10, num_rot=10, num_contrast=20,
+                                               num_noise=25, num_sat=10, num_bright=10, num_gamma=10, num_hue=5):
                         if len(imgs) < batch_size:
                             imgs.append(im)
                             maps.append(m) 
