@@ -20,7 +20,7 @@ def select_sai_range(n_sai, target_n_sai=49):
     right = mid + target_n_sai//2
     return left, right
 
-def proc_maps(d_map=None, img_size=436):
+def proc_maps(d_map=None, img_size=436, hci=True, sintel=False):
     '''
     transforms disparity maps and depth maps to the given size
     '''
@@ -32,7 +32,7 @@ def proc_maps(d_map=None, img_size=436):
     tp,b = h_offset, h_offset+img_size
     window = (l,tp,r,b)
     x0, y0, x1, y1 = map(int, map(round, window))
-    if img_size <= 436:
+    if img_size < 436 or hci:
         cropped = d_map[x0:x1, y0:y1]
     else:
         remain = img_size-436
@@ -113,8 +113,10 @@ def flatten_hci(save_dir,read_dir,
             if 'test' not in r_dir: 
                 depth = hci_io.read_depth(r_dir)
                 disp = hci_io.read_disparity(r_dir)
-                depth = proc_maps(depth, img_size=img_size)
-                disp = proc_maps(disp, img_size=img_size)
+                print([np.amin(np.asarray(disp)), np.amax(np.asarray(disp))])
+                depth = proc_maps(depth, img_size=img_size, hci=True, sintel=False)
+                disp = proc_maps(disp, img_size=img_size, hci=True, sintel=False)
+                print([np.amin(np.asarray(disp)), np.amax(np.asarray(disp))])
                 np.save(save_dir + 'center_depth.npy', depth)
                 print(f"{save_dir}center_depth.npy saved.")
                 np.save(save_dir + 'center_disp.npy', disp)
@@ -176,7 +178,7 @@ def flatten_sintel(save_dir,read_dir,
             if folder == '04_04/':
                 # reshapes disp map to (img_size, img_size) in the same way as the 2D image
                 c_disp = np.load(read_dir + folder + frame + '.npy')
-                c_disp = proc_maps(c_disp, img_size=img_size)
+                c_disp = proc_maps(c_disp, img_size=img_size, hci=False, sintel=True)
                 print(c_disp.shape)
                 np.save(save_dir+f'{frame}_center.npy', c_disp)
                 print(f"{save_dir}{frame}_center.npy saved.")
@@ -194,28 +196,28 @@ if __name__ == "__main__":
     data_path = '../../../datasets'
     start = time.time()
 
-    sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
-    for d in sintel_r_dirs:
-        r_dir = d.path + '/'
-        s_dir = r_dir + 'stacked/'
-        print('read dir: ', r_dir)
-        print('save dir: ', s_dir)
-        flatten_sintel(save_dir = s_dir,
-                        read_dir = r_dir,
-                        target_n_sai=81, img_size=512)
+    #sintel_r_dirs = [d for d in os.scandir(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/') if d.is_dir()]
+    #for d in sintel_r_dirs:
+    #    r_dir = d.path + '/'
+    #    s_dir = r_dir + 'stacked/'
+    #    print('read dir: ', r_dir)
+    #    print('save dir: ', s_dir)
+    #    flatten_sintel(save_dir = s_dir,
+    #                    read_dir = r_dir,
+    #                    target_n_sai=81, img_size=512)
 
-    #hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
-    #for s in hci_folder:
-    #    sub_dir = s.path
-    #    hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
-    #    for d in hci_r_dirs:
-    #        r_dir = d.path + '/'
-    #        s_dir = r_dir + 'stacked/'
-    #        print('read dir: ', r_dir)
-    #        print('save dir: ', s_dir)
-    #        flatten_hci(save_dir = s_dir, 
-    #                        read_dir = r_dir,
-    #                        n_sai=81,target_n_sai=81, img_size = 512)
+    hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
+    for s in hci_folder:
+        sub_dir = s.path
+        hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
+        for d in hci_r_dirs:
+            r_dir = d.path + '/'
+            s_dir = r_dir + 'stacked/'
+            print('read dir: ', r_dir)
+            print('save dir: ', s_dir)
+            flatten_hci(save_dir = s_dir, 
+                            read_dir = r_dir,
+                            n_sai=81,target_n_sai=81, img_size = 512)
         
     end = time.time()
     print('time to flatten: ', end-start)

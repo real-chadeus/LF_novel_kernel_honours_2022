@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 data_path = '../../../datasets'
 
-d_map = np.load(data_path + '/hci_dataset/additional/dishes/stacked/center.npy')
+d_map = np.load(data_path + '/hci_dataset/additional/antinous/stacked/center_disp.npy')
 plt.imshow(d_map, interpolation='nearest')
 plt.show()
 plt.imshow(np.swapaxes(d_map, 0,1), interpolation='nearest')

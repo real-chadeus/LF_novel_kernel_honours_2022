@@ -13,10 +13,9 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 
 data_path = '../../datasets'
 
-def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
+def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contrast=1,
             num_noise=1, num_sat=1, num_bright=1, num_gamma=1, 
-            num_hue=1, use_gen=True,
-            img_shape=(9,436,9,436,3)):
+            num_hue=1, use_gen=True):
     '''
     custom augment function
     returns: tuple (images, depth maps)
@@ -174,14 +173,12 @@ def load_hci(img_shape = (9,512,9,512,3), do_augment=False,
             lfi = np.stack(lfi)
             # read depth map as labels
             if predict == False:
-                # load and normalize depth/disparity maps
                 d_map = []
                 if use_disp: 
                     d_map = np.load(r_dir + '/stacked/center_disp.npy')
                 else:
                     d_map = np.load(r_dir + '/stacked/center_depth.npy')
 
-                d_map = d_map/np.abs(np.amax(d_map))
                 d_map = np.swapaxes(d_map, 0, 1)
                 labels.append(d_map)
 
@@ -293,13 +290,11 @@ def dataset_gen(augment_sintel=True, augment_hci=True,
                 # read + normalize disparity maps
                 d_map = np.load(r_dir + frame + '_center.npy')
                 d_map = np.swapaxes(d_map, 0, 1)
-                if np.max(d_map) > 1:
-                    d_map = d_map/10.0 
                 
                 if augment_sintel:
                     ds = (lfi, d_map)
-                    for im, m in augment(ds, img_shape=img_shape, num_flips=2, num_rot=2, num_contrast=2,
-                                               num_noise=3, num_sat=3, num_bright=3, num_gamma=3, num_hue=0):
+                    for im, m in augment(ds, img_shape=(81, 512, 512, 3), num_flips=2, num_rot=2, num_contrast=2,
+                                               num_noise=2, num_sat=2, num_bright=2, num_gamma=2, num_hue=0):
                         if len(imgs) < batch_size:
                             imgs.append(im)
                             maps.append(m) 
@@ -342,17 +337,15 @@ def dataset_gen(augment_sintel=True, augment_hci=True,
                 #img = np.moveaxis(img, 2,3)
                 #img = np.moveaxis(img, 0,2) 
                 #center = img[angres**2//2, :, :, :]
-                #plt.imshow(center, interpolation='nearest')
-                #plt.show()
 
                 # load and normalize disparity maps
                 d_map = np.load(r_dir + '/stacked/center_disp.npy')
                 d_map = np.swapaxes(d_map, 0, 1)
-                d_map = d_map/np.abs(np.amax(d_map))
+                #d_map = d_map/np.abs(np.amax(d_map))
 
                 if augment_hci:
                     ds = (lfi, d_map)
-                    for im, m in augment(ds, img_shape=img_shape, num_flips=20, num_rot=20, num_contrast=50,
+                    for im, m in augment(ds, img_shape=(81,512,512,3), num_flips=20, num_rot=20, num_contrast=50,
                                                num_noise=25, num_sat=25, num_bright=50, num_gamma=50, num_hue=3):
                         if len(imgs) < batch_size:
                             imgs.append(im)

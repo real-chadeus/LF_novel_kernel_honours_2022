@@ -89,9 +89,9 @@ def read_depth(data_folder, highres=False):
 
 def read_disparity(data_folder, highres=False):
     if highres:
-        fpath = os.path.join(data_folder, "gt_depth_highres.pfm")
+        fpath = os.path.join(data_folder, "gt_disp_highres.pfm")
     else:
-        fpath = os.path.join(data_folder, "gt_depth_lowres.pfm")
+        fpath = os.path.join(data_folder, "gt_disp_lowres.pfm")
 
     try:
         print("disparity file read success: ", fpath)
@@ -182,6 +182,7 @@ def _get_next_line(f):
     while next_line.startswith(b'#'):
         next_line = f.readline().rstrip()
     return next_line.decode("utf-8")
+
 
 
 
