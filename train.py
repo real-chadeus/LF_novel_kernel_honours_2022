@@ -41,14 +41,14 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    #lr = 0.0001
-    lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-        initial_learning_rate=0.0001,
-        decay_steps=5000,
-        decay_rate=0.95)
+    lr = 0.01
+    #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+    #    initial_learning_rate=0.00025,
+    #    decay_steps=2500,
+    #    decay_rate=0.9)
 
     loss = losses.MeanAbsoluteError()
-    optimizer = Adam(learning_rate=lr_schedule)
+    optimizer = Adam(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
@@ -72,7 +72,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     # train model
     if use_gen:
         val = val_set 
-        gen = functools.partial(load_data.dataset_gen, input_shape, 
+        gen = functools.partial(load_data.dataset_gen, 
                                 load_sintel=load_sintel, load_hci=load_hci,
                                 augment_sintel=augment_sintel, augment_hci=augment_hci,
                                 batch_size=batch_size)
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     model = net.build_model(input_shape=input_shape, summary=True, 
                                     n_sais=81, batch_size=batch_size)
     # validation dataset
-    hci_val = load_data.load_hci(img_shape=input_shape, do_augment=False, 
+    hci_val = load_data.load_hci(do_augment=False, 
                                 use_tf_ds=False, use_disp=True)
     #sintel_val = load_data.load_sintel(img_shape=input_shape, do_augment=False,
     #                                    use_tf_ds=False, use_disp=True)
@@ -122,9 +122,9 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=25, model_name='bothds_softmax', 
-            use_gen=True, load_model=False, load_sintel=True,
-            load_hci=True, augment_sintel=False, augment_hci=True)
+            val_set=hci_val, epochs=25, model_name='hci_only', 
+            use_gen=True, load_model=False, load_sintel=False,
+            load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
     print('time to train: ', end-start)
 

@@ -145,7 +145,7 @@ def augment(dataset, num_flips=1, num_rot=1, num_contrast=1,
     if use_gen == False:
         return imgs, disps
 
-def load_hci(img_shape = (7,512,7,512,3), do_augment=False, 
+def load_hci(img_shape = (9,512,9,512,3), do_augment=False, 
                 predict=False, use_tf_ds=False, use_disp=True):
     '''
     load images and depth maps into tensorflow dataset (from HCI) 
@@ -165,6 +165,13 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False,
             # load + normalize
             img = Image.open(r_dir + '/stacked/stacked.png')
             img = np.asarray(img)
+            img = img.reshape((9,512,9,512,3), order='F')
+            lfi = []
+            for i in range(9):
+                for k in range(9):
+                    lfi.append(img[i, :, k, :, :])
+            lfi = np.asarray(lfi)
+            lfi = np.stack(lfi)
             # read depth map as labels
             if predict == False:
                 # load and normalize depth/disparity maps
@@ -175,32 +182,18 @@ def load_hci(img_shape = (7,512,7,512,3), do_augment=False,
                     d_map = np.load(r_dir + '/stacked/center_depth.npy')
 
                 d_map = d_map/np.abs(np.amax(d_map))
+                d_map = np.swapaxes(d_map, 0, 1)
                 labels.append(d_map)
 
-                if do_augment:
-                    ds = (img, d_map)
-                    imgs, maps = augment(ds)
-                    for im in imgs:
-                        if use_tf_ds:
-                            im = np.expand_dims(im, axis=0) # for using tf.dataset.Dataset datasets
-                        img_set.append(im)
-                    for d in maps:
-                        labels.append(d)
-
-            img = img.reshape(img_shape, order='F')
             if use_tf_ds:
-                img = np.expand_dims(img, axis=0) # for using tf.dataset.Dataset datasets
+                img = np.expand_dims(lfi, axis=0) # for using tf.dataset.Dataset datasets
 
-            img_set.append(img)
+            img_set.append(lfi)
 
     if predict:
-        dataset = img_set
-        return dataset
-    img_set = np.asarray(img_set)
-    labels = np.asarray(labels)
-    dataset = (img_set, labels)
-    #dataset = tf.data.Dataset.from_tensor_slices(dataset)
-    return dataset
+        return np.asarray(img_set)
+
+    return (np.asarray(img_set), np.asarray(labels))
 
 
 def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, use_disp=True):
@@ -261,7 +254,7 @@ def load_sintel(img_shape = (7,512,7,512,3), do_augment=True, use_tf_ds=True, us
     return dataset
     
 
-def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=True,
+def dataset_gen(augment_sintel=True, augment_hci=True,
                 load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
@@ -286,21 +279,27 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                 # load images
                 img = Image.open(r_dir + frame + '_stacked.png')
                 img = np.asarray(img)
-                img = img.reshape(img_shape, order='F')
+                img = img.reshape((9,512,9,512,3), order='F')
+                lfi = []
+                for i in range(9):
+                    for k in range(9):
+                        lfi.append(img[i, :, k, :, :])
+                lfi = np.asarray(lfi)
+                lfi = np.stack(lfi)
                 #img = img.reshape((angres, h, angres, w, 3), order='F')
                 #img = np.moveaxis(img, 2,3)
                 #img = np.moveaxis(img, 0,2) 
 
                 # read + normalize disparity maps
                 d_map = np.load(r_dir + frame + '_center.npy')
-                #d_map = d_map/np.abs(np.amax(d_map))
+                d_map = np.swapaxes(d_map, 0, 1)
                 if np.max(d_map) > 1:
                     d_map = d_map/10.0 
                 
                 if augment_sintel:
-                    ds = (img, d_map)
-                    for im, m in augment(ds, img_shape=img_shape, num_flips=1, num_rot=2, num_contrast=2,
-                                               num_noise=3, num_sat=2, num_bright=2, num_gamma=2, num_hue=0):
+                    ds = (lfi, d_map)
+                    for im, m in augment(ds, img_shape=img_shape, num_flips=2, num_rot=2, num_contrast=2,
+                                               num_noise=3, num_sat=3, num_bright=3, num_gamma=3, num_hue=0):
                         if len(imgs) < batch_size:
                             imgs.append(im)
                             maps.append(m) 
@@ -315,7 +314,7 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                     imgs = []
                     maps = []
 
-                imgs.append(img)
+                imgs.append(lfi)
                 maps.append(d_map)
 
 
@@ -333,7 +332,13 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                 # load images
                 img = Image.open(r_dir + '/stacked/stacked.png')
                 img = np.asarray(img)
-                img = img.reshape(img_shape, order='F')
+                img = img.reshape((9,512,9,512,3), order='F')
+                lfi = []
+                for i in range(9):
+                    for k in range(9):
+                        lfi.append(img[i, :, k, :, :])
+                lfi = np.asarray(lfi)
+                lfi = np.stack(lfi)
                 #img = np.moveaxis(img, 2,3)
                 #img = np.moveaxis(img, 0,2) 
                 #center = img[angres**2//2, :, :, :]
@@ -342,12 +347,13 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
 
                 # load and normalize disparity maps
                 d_map = np.load(r_dir + '/stacked/center_disp.npy')
+                d_map = np.swapaxes(d_map, 0, 1)
                 d_map = d_map/np.abs(np.amax(d_map))
 
                 if augment_hci:
-                    ds = (img, d_map)
-                    for im, m in augment(ds, img_shape=img_shape, num_flips=10, num_rot=10, num_contrast=20,
-                                               num_noise=25, num_sat=10, num_bright=10, num_gamma=10, num_hue=5):
+                    ds = (lfi, d_map)
+                    for im, m in augment(ds, img_shape=img_shape, num_flips=20, num_rot=20, num_contrast=50,
+                                               num_noise=25, num_sat=25, num_bright=50, num_gamma=50, num_hue=3):
                         if len(imgs) < batch_size:
                             imgs.append(im)
                             maps.append(m) 
@@ -363,7 +369,7 @@ def dataset_gen(img_shape = (9,512,9,512,3), augment_sintel=True, augment_hci=Tr
                     imgs = []
                     maps = []
 
-                imgs.append(img)
+                imgs.append(lfi)
                 maps.append(d_map)
 
 

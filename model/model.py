@@ -66,7 +66,7 @@ class DepthCueExtractor(tf.keras.Model):
                 mask_op = mask_op.write(i, size_weight)
             masks = masks.write(b, mask_op.stack())
         masks = masks.stack()
-        masks = tf.ensure_shape(masks, shape=[self.batch_size, self.h])
+        masks = tf.ensure_shape(masks, shape=[self.batch_size, self.n_filters])
         return masks
 
     def height(self, f_maps):
@@ -91,15 +91,16 @@ class DepthCueExtractor(tf.keras.Model):
 
     def call(self, lfi, f_maps):
         h_mask = self.height(f_maps)
-        #self.relative_size(f_maps)  
+        s_mask = self.relative_size(f_maps)  
         results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
         for b in range(self.batch_size):
             result = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
-                #s_feat = lfi[b, :, :, :, :] * self.size_mask[b, i]
+                s_feat = lfi[b, :, :, :, :] * s_mask[b, i]
                 h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) * h_mask[b, i, :]
                 h_feat = tf.transpose(h_feat, perm=[0,3,2,1])
-                result = result.write(i, h_feat)
+                combined_feat = s_feat * h_feat
+                result = result.write(i, combined_feat)
             results = results.write(b, result.stack())
         
         results = results.stack()
@@ -107,7 +108,7 @@ class DepthCueExtractor(tf.keras.Model):
                                  shape=[self.batch_size,
                                         self.n_filters,
                                         ] + lfi.shape[1:])
-        # aggregate across channels
+        # aggregate across colour channels
         results = tf.reduce_mean(results, axis=5)
         results = tf.transpose(results, perm=[0,2,3,4,1])
         return results
@@ -186,6 +187,8 @@ def feature_extractor(X, n_sais=81, monocular=False, input_shape=(436,436,3)):
         X = layers.Conv3D(filters=9, kernel_size=(1,3,3), padding='same')(X)
         X = layers.Conv3D(filters=9, kernel_size=(1,3,3), padding='same')(X)
         X = layers.LayerNormalization()(X)
+
+        X = layers.Softmax()(X)
 
     return X
 
