@@ -41,7 +41,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.01
+    lr = 0.005
     #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
     #    initial_learning_rate=0.00025,
     #    decay_steps=2500,
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     #h = input_shape[0]
     #w = input_shape[1]
     #angres = input_shape[2]
-    input_shape = (81,512,512,3)
+    input_shape = (9,512,512,9)
 
     model = net.build_model(input_shape=input_shape, summary=True, 
                                     n_sais=81, batch_size=batch_size)
