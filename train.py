@@ -31,7 +31,8 @@ save_path = 'saved_models/'
 def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', 
             use_gen=True, load_model=False, load_sintel=True,
-            load_hci=True, augment_sintel=True, augment_hci=True):
+            load_hci=True, augment_sintel=True, augment_hci=True,
+            crop=True, window_size=32):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -41,13 +42,13 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.005
+    lr = 0.001
     #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
     #    initial_learning_rate=0.00025,
     #    decay_steps=2500,
     #    decay_rate=0.9)
 
-    loss = losses.MeanAbsoluteError()
+    loss = losses.MeanSquaredError()
     optimizer = Adam(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
@@ -73,12 +74,10 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if use_gen:
         val = val_set 
         gen = functools.partial(load_data.dataset_gen, 
-                                load_sintel=load_sintel, load_hci=load_hci,
+                                load_sintel=load_sintel, load_hci=load_hci, crop=crop, window_size=window_size,
                                 augment_sintel=augment_sintel, augment_hci=augment_hci,
                                 batch_size=batch_size)
-        #def data_gen(): 
-        #    for i in range(train_data.shape[0]):
-        #        yield train_data[i], train_labels[i]  
+
         training = tf.data.Dataset.from_generator(gen,
               output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
                                 tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
@@ -109,13 +108,19 @@ if __name__ == "__main__":
     #h = input_shape[0]
     #w = input_shape[1]
     #angres = input_shape[2]
-    input_shape = (9,512,512,9)
+    input_shape = (9,32,32,9)
 
     model = net.build_model(input_shape=input_shape, summary=True, 
                                     n_sais=81, batch_size=batch_size)
     # validation dataset
-    hci_val = load_data.load_hci(do_augment=False, 
-                                use_tf_ds=False, use_disp=True)
+    hci_val = functools.partial(load_data.dataset_gen, 
+                                load_sintel=False, load_hci=True, crop=True, window_size=32,
+                                augment_sintel=False, augment_hci=False,
+                                batch_size=batch_size)
+    hci_val = tf.data.Dataset.from_generator(hci_val,
+          output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
+                            tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
+
     #sintel_val = load_data.load_sintel(img_shape=input_shape, do_augment=False,
     #                                    use_tf_ds=False, use_disp=True)
     

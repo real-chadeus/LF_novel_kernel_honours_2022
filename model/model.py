@@ -7,6 +7,7 @@ import numpy as np
 import einops
 import matplotlib.pyplot as plt
 from model.conv4d import Conv4D
+import tensorflow_addons as tfa
 
 class OcclusionHandler(tf.keras.Model):
     '''
@@ -112,62 +113,107 @@ class DepthCueExtractor(tf.keras.Model):
         results = tf.reduce_mean(results, axis=(1,4))
         return results
 
-def aggregate(cost_volume, depth_cues=None, combine=False, n_filters=24):
-    # aggregate the cost volume by combining features (incl. monocular depth cues)
-    X = layers.Conv2D(filters=1, kernel_size=(1,1), padding='same')(cost_volume)
-    X = layers.Conv2D(filters=4, kernel_size=(1,1), padding='same')(X)
-    X = layers.Conv3D(filters=n_filters, kernel_size=(1,1,1), padding='same')(X)
-    X = layers.LayerNormalization()(X)
-    
-    if combine:
-        # combine monocular depth cues with multi-view features 
-        #depth_cues = layers.AveragePooling2D(pool_size=(1,1))(depth_cues)
-        #depth_cues = layers.Conv2D(filters=4, kernel_size=(1,1), padding='same')(depth_cues)
-        #depth_cues = layers.LeakyReLU()(depth_cues)
-        #depth_cues = layers.LayerNormalization()(depth_cues)
-        X = depth_cues * X 
-        X = layers.Softmax()(X)
-        X = layers.LayerNormalization()(X)
 
+def aggregate(cost_volume):
+    # aggregate cost volume
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(cost_volume)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    
+    return X
+    
+
+def combine(cost, depth_cues):
+    # combine monocular depth cues with multi-view features 
+    X = depth_cues * cost 
     X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
+    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
+    X = layers.LayerNormalization()(X)
+
     X = tf.squeeze(X)
 
     return X
 
-def feature_extractor(X, n_sais=81, monocular=False, input_shape=(436,436,3)):
+def generate_cost(f_maps, n_filters=24):
+    map_shape = f_maps[:,:,:,:,0].shape
+    disparity_values = np.linspace(-4, 4, 17) # limit disparity range to -4, 4
+    disparity_costs = []
+    for d in disparity_values:
+        if d == 0:
+            tmp_list = []
+            for i in range(n_filters):
+                tmp_list.append(f_maps[:,:,:,:,i])
+        else:
+            tmp_list = []
+            for i in range(n_filters):
+                (v, u) = divmod(i, 9)
+                tensor = tf.roll(f_maps[:,:,:,:,i],
+                                             [int(d * (u - 4)), int(d * (v - 4))],
+                                             axis=[2,3])
+                tmp_list.append(tensor)
+
+        cost = tf.concat(tmp_list, axis=1)
+        disparity_costs.append(cost)
+    cost_volume = K.stack(disparity_costs, axis=1)
+    cost_volume = tf.reshape(cost_volume,
+                            (map_shape[0], 17, map_shape[2], map_shape[3], n_filters))
+    cost_volume = layers.AveragePooling3D(pool_size=(3,1,1))(cost_volume)
+    cost_volume = layers.AveragePooling3D(pool_size=(3,1,1))(cost_volume)
+    return cost_volume
+
+def feature_extractor(X, n_sais=81, monocular=False):
 
     if monocular:
         # depth cue extraction
-        X = layers.Conv2D(filters=1, kernel_size=(1,1), padding='same')(X)
-
         X = layers.LayerNormalization()(X)
-        X = layers.Conv2D(filters=3, kernel_size=(9,9), padding='same')(X)
+
+        X = layers.Conv2D(filters=162, kernel_size=(1,1), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
         X = layers.LeakyReLU()(X)
 
-        X = layers.LayerNormalization()(X)
-        X = layers.Conv2D(filters=12, kernel_size=(9,9), padding='same')(X)
-        X = layers.Conv2D(filters=24, kernel_size=(4,4), padding='same')(X)
-        X = layers.LayerNormalization()(X)
+        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
 
-        X = layers.Conv2D(filters=24, kernel_size=(3,3), padding='same')(X)
+        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
 
     else:
-        # lfi feature extraction and pooling over angular axes
-        X = layers.Conv3D(filters=9, kernel_size=(1,1,1), padding='same')(X)
+        # lfi feature extraction and cost volume creation 
+        X = layers.Conv3D(filters=1, kernel_size=(1,3,3), padding='same')(X)
 
+        X = layers.Conv3D(filters=3, kernel_size=(1,3,3), padding='same')(X)
         X = layers.AveragePooling3D(pool_size=(3,1,1))(X)
-        X = layers.Conv3D(filters=3, kernel_size=(1,1,1), padding='same')(X)
-        X = layers.LeakyReLU()(X)
 
+        X = layers.Conv3D(filters=3, kernel_size=(1,3,3), padding='same')(X)
         X = layers.AveragePooling3D(pool_size=(3,1,1))(X)
-        X = layers.Conv3D(filters=3, kernel_size=(1,1,1), padding='same')(X)
-        X = layers.LeakyReLU()(X)
 
-        X = layers.Conv3D(filters=4, kernel_size=(1,1,1), padding='same')(X)
-        X = layers.LayerNormalization()(X)
+        X = layers.Conv3D(filters=4, kernel_size=(1,3,3), padding='same')(X)
+        X = layers.AveragePooling3D(pool_size=(1,1,1))(X)
 
-        X = layers.Conv3D(filters=4, kernel_size=(1,1,1), padding='same')(X)
+        X = layers.Conv3D(filters=8, kernel_size=(1,3,3), padding='same')(X)
         X = layers.LayerNormalization()(X)
+        
+        X = generate_cost(X, n_filters=8) 
 
     return X
 
@@ -178,7 +224,7 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     param output_shape: size of the 2D depth map
     '''
     # initial input mapping
-    inputs = keras.Input(shape=input_shape, name='lfse_model_input', batch_size=batch_size)
+    inputs = keras.Input(shape=input_shape, name='model_input', batch_size=batch_size)
     X = layers.LayerNormalization()(inputs)
     
     # monocular feature depth cue from center view
@@ -187,26 +233,21 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     center_view = tf.expand_dims(center_view, axis=-1)
     f_maps = feature_extractor(center_view, n_sais=n_sais, monocular=True)
     depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
-                        n_filters=24, batch_size=batch_size)(X, f_maps)
+                        n_filters=162, batch_size=batch_size)(X, f_maps)
 
-    # multi-view feature extraction across the entire lfi
+    # multi-view feature extraction + cost volume creation
     X = feature_extractor(X, n_sais=n_sais)
     # occlusion masking 
     #X = OcclusionHandler()(X)
 
-    # aggregate multi-view and monocular features into one cost volume
-    X = aggregate(X, depth_cues=depth_cues, combine=True ,n_filters=24)
-    #X = aggregate(X)
+    # aggregate cost volume
+    X = aggregate(X)
+    # integrate cost volume & depth cues
+    X = combine(X, depth_cues)
 
-    X = layers.Dense(2048, activation='linear')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.Dense(2560, activation='sigmoid')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.Dense(1024, activation='linear')(X)
+    predictions = tf.squeeze(layers.Dense(1, activation='linear')(X))
 
-    X = tf.squeeze(layers.Dense(1, activation='linear')(X))
-
-    model = models.Model(inputs=inputs, outputs=X) 
+    model = models.Model(inputs=inputs, outputs=predictions) 
  
     if summary:
         model.summary()
