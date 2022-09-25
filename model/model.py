@@ -9,37 +9,6 @@ import matplotlib.pyplot as plt
 from model.conv4d import Conv4D
 import tensorflow_addons as tfa
 
-class OcclusionHandler(tf.keras.Model):
-    '''
-    generates occlusion aware matching costs.
-    '''
-    def __init__(self, h, w, angres, f_maps):
-        super(OcclusionHandler, self).__init__(name='occlusion_handler')
-        self.angres = angres
-        self.h = h
-        self.w = w
-        # occlusion mask is trainable; initialized with values of 1
-        self.mask = tf.ones((angres, h, angres, w, 1)) 
-        self.cost = self.build_cost(f_maps, self.mask)
-        self.disp = self.aggregate(self.cost)
-
-    def warp(img, disp, du, dv, x_base, y_base):
-        return None
-    
-    def occlusion_mask(self, lfi, disp):
-        # create mask to handle occlusions
-        return None
-
-    def build_cost(self, x, mask):
-        # apply mask to the image
-        cost = x * mask
-        return cost
-
-    def call(self, img, f_maps):
-        self.mask = self.occlusion_mask(img, self.disp)
-        self.cost = self.build_cost(f_maps, mask)
-        self.disp = self.aggregate(cost)
-        return self.disp
 
 class DepthCueExtractor(tf.keras.Model):
     '''
@@ -92,16 +61,17 @@ class DepthCueExtractor(tf.keras.Model):
 
     def call(self, lfi, f_maps):
         h_mask = self.height(f_maps)
-        #s_mask = self.relative_size(f_maps)  
+        s_mask = self.relative_size(f_maps)  
         results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
         for b in range(self.batch_size):
             result = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
-                #s_feat = lfi[b, :, :, :, :] * s_mask[b, i]
+                s_feat = lfi[b, :, :, :, :] * s_mask[b, i]
                 h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) * h_mask[b, i, :]
                 h_feat = tf.transpose(h_feat, perm=[0,3,2,1])
-                #combined_feat = s_feat * h_feat
-                result = result.write(i, h_feat)
+                #result = result.write(i, h_feat)
+                combined_feat = s_feat * h_feat
+                result = result.write(i, combined_feat)
             results = results.write(b, result.stack())
         
         results = results.stack()
@@ -140,6 +110,8 @@ def combine(cost, depth_cues):
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
     X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
     X = layers.LayerNormalization()(X)
@@ -149,6 +121,7 @@ def combine(cost, depth_cues):
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
     X = layers.LayerNormalization()(X)
 
     X = tf.squeeze(X)
@@ -188,32 +161,42 @@ def feature_extractor(X, n_sais=81, monocular=False):
         # depth cue extraction
         X = layers.LayerNormalization()(X)
 
+        X = tf.clip_by_value(X, -4, 4)
         X = layers.Conv2D(filters=162, kernel_size=(1,1), padding='same')(X)
         X = layers.LeakyReLU()(X)
+        X = layers.LayerNormalization()(X)
+
         X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
         X = layers.LeakyReLU()(X)
+        X = layers.LayerNormalization()(X)
 
         X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.LayerNormalization()(X)
 
-        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+        X = layers.Conv2D(filters=243, kernel_size=(3,3), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.LayerNormalization()(X)
+
 
     else:
         # lfi feature extraction and cost volume creation 
-        X = layers.Conv3D(filters=1, kernel_size=(1,3,3), padding='same')(X)
+        X = tf.clip_by_value(X, -4, 4)
+        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
 
-        X = layers.Conv3D(filters=3, kernel_size=(1,3,3), padding='same')(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
         X = layers.AveragePooling3D(pool_size=(3,1,1))(X)
 
-        X = layers.Conv3D(filters=3, kernel_size=(1,3,3), padding='same')(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
         X = layers.AveragePooling3D(pool_size=(3,1,1))(X)
 
-        X = layers.Conv3D(filters=4, kernel_size=(1,3,3), padding='same')(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
         X = layers.AveragePooling3D(pool_size=(1,1,1))(X)
 
-        X = layers.Conv3D(filters=8, kernel_size=(1,3,3), padding='same')(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
         X = layers.LayerNormalization()(X)
         
-        X = generate_cost(X, n_filters=8) 
+        #X = generate_cost(X, n_filters=81) 
 
     return X
 
@@ -225,7 +208,7 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     '''
     # initial input mapping
     inputs = keras.Input(shape=input_shape, name='model_input', batch_size=batch_size)
-    X = layers.LayerNormalization()(inputs)
+    X = layers.BatchNormalization()(inputs)
     
     # monocular feature depth cue from center view
     center = angres//2 
@@ -237,15 +220,16 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
 
     # multi-view feature extraction + cost volume creation
     X = feature_extractor(X, n_sais=n_sais)
-    # occlusion masking 
-    #X = OcclusionHandler()(X)
-
     # aggregate cost volume
     X = aggregate(X)
     # integrate cost volume & depth cues
     X = combine(X, depth_cues)
 
+    if batch_size > 1:
+        X = tf.reduce_mean(X, axis=1)
+
     predictions = tf.squeeze(layers.Dense(1, activation='linear')(X))
+    predictions = predictions * 0.1
 
     model = models.Model(inputs=inputs, outputs=predictions) 
  

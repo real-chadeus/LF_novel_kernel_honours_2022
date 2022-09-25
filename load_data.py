@@ -136,9 +136,19 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     if use_gen == False:
         return imgs, disps
 
+def random_crop(img, disp):
+    x_range = np.arange(0, 16)
+    y_range = np.arange(0, 16)
+    x = np.random.choice(x_range)
+    y = np.random.choice(y_range)
+    crop_img = img[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
+    crop_map = disp[32*x:32*(x+1),32*y:32*(y+1)]
+    return (crop_img, crop_map)
+
 
 def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32,
-                load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000):
+                load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000,
+                validation=False):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
     Loads in order of Sintel -> HCI
@@ -221,25 +231,10 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
                 if augment_hci:
                     ds = (lfi, d_map)
-                    for im, m in augment(ds, img_shape=(9,512,512,9), num_flips=5, num_rot=5, num_contrast=10,
-                                               num_noise=10, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
-                        for x in range(15):
-                            for y in range(15): 
-                                crop_img = im[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
-                                crop_map = m[32*x:32*(x+1),32*y:32*(y+1)]
-                                if len(imgs) < batch_size:
-                                    imgs.append(crop_img)
-                                    maps.append(crop_map) 
-                                if len(imgs) == batch_size:
-                                    yield (np.asarray(imgs), np.asarray(maps))
-                                    imgs = []
-                                    maps = []
-
-                for x in range(15):
-                    for y in range(15): 
-                        crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
-                        crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
+                    for im, m in augment(ds, img_shape=(9,512,512,9), num_flips=50, num_rot=50, num_contrast=50,
+                                               num_noise=50, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
                         if len(imgs) < batch_size:
+                            crop_img, crop_map = random_crop(im, m) 
                             imgs.append(crop_img)
                             maps.append(crop_map) 
                         if len(imgs) == batch_size:
@@ -247,10 +242,27 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                             imgs = []
                             maps = []
 
-                if len(imgs) == batch_size:
-                    yield (np.asarray(imgs), np.asarray(maps))
-                    imgs = []
-                    maps = []
+                if validation:
+                    for x in range(16):
+                        for y in range(16): 
+                            crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
+                            crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
+                            if len(imgs) < batch_size:
+                                imgs.append(crop_img)
+                                maps.append(crop_map) 
+                            if len(imgs) == batch_size:
+                                yield (np.asarray(imgs), np.asarray(maps))
+                                imgs = []
+                                maps = []
+                else:
+                    if len(imgs) < batch_size:
+                        crop_img, crop_map = random_crop(lfi, d_map) 
+                        imgs.append(crop_img)
+                        maps.append(crop_map) 
+                    if len(imgs) == batch_size:
+                        yield (np.asarray(imgs), np.asarray(maps))
+                        imgs = []
+                        maps = []
 
 
 

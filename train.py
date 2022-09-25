@@ -1,4 +1,5 @@
 import pathlib, datetime
+import gc
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.optimizers import Adam
@@ -28,6 +29,11 @@ sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushf
 #    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
 save_path = 'saved_models/'
 
+class MemoryCleaner(tf.keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        gc.collect()
+        tf.keras.backend.clear_session()
+
 def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', 
             use_gen=True, load_model=False, load_sintel=True,
@@ -48,7 +54,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     #    decay_steps=2500,
     #    decay_rate=0.9)
 
-    loss = losses.MeanSquaredError()
+    loss = losses.MeanAbsoluteError()
     optimizer = Adam(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
@@ -59,11 +65,12 @@ def train(model, input_shape=(), dataset=(), val_set=[],
                             ])
 
     # checkpoint
-    checkpoint = ModelCheckpoint(filepath = save_path + model_name, monitor='val_BadPix7',
+    checkpoint = ModelCheckpoint(filepath = 'checkpoints/' + model_name, monitor='val_mean_squared_error',
             save_best_only=True, save_weights_only=False, verbose=1, mode='min')
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
     tqdm_callback = tfa.callbacks.TQDMProgressBar()
+    memory_cleaner = MemoryCleaner()
     #lr_schedule = LearningRateScheduler(step_decay, verbose=1)
 
     if load_model:
@@ -71,30 +78,20 @@ def train(model, input_shape=(), dataset=(), val_set=[],
         model = keras.models.load_model(save_path + model_name, custom_objects={'BadPix': BadPix})
 
     # train model
-    if use_gen:
-        val = val_set 
-        gen = functools.partial(load_data.dataset_gen, 
-                                load_sintel=load_sintel, load_hci=load_hci, crop=crop, window_size=window_size,
-                                augment_sintel=augment_sintel, augment_hci=augment_hci,
-                                batch_size=batch_size)
+    val = val_set 
+    gen = functools.partial(load_data.dataset_gen, 
+                            load_sintel=load_sintel, load_hci=load_hci, crop=crop, window_size=window_size,
+                            augment_sintel=augment_sintel, augment_hci=augment_hci,
+                            batch_size=batch_size)
 
-        training = tf.data.Dataset.from_generator(gen,
-              output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
-                                tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
+    training = tf.data.Dataset.from_generator(gen,
+          output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
+                            tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
-        model.fit(x=training, epochs=epochs, validation_data=val,
-                    validation_batch_size=batch_size, 
-                    callbacks=[TqdmCallback(verbose=2), 
-                                checkpoint, logger])
-    else:
-        train = dataset[0]
-        train_data = train[0]
-        train_labels = train[1]
-        val = dataset[1]
-        model.fit(x=train_data, y=train_labels, batch_size=batch_size, 
-                    epochs=epochs, validation_data=val,
-                    validation_batch_size=1,
-                    callbacks=[TqdmCallback(verbose=2), logger])
+    model.fit(x=training, epochs=epochs, validation_data=val,
+                validation_batch_size=batch_size, 
+                callbacks=[TqdmCallback(verbose=2), 
+                            checkpoint, logger, memory_cleaner])
 
     model.save(save_path + model_name)
 
@@ -116,7 +113,7 @@ if __name__ == "__main__":
     hci_val = functools.partial(load_data.dataset_gen, 
                                 load_sintel=False, load_hci=True, crop=True, window_size=32,
                                 augment_sintel=False, augment_hci=False,
-                                batch_size=batch_size)
+                                batch_size=batch_size, validation=True)
     hci_val = tf.data.Dataset.from_generator(hci_val,
           output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
                             tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
@@ -127,7 +124,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=25, model_name='hci_only', 
+            val_set=hci_val, epochs=50, model_name='hci_only3', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()

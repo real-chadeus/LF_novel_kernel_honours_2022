@@ -15,10 +15,19 @@ import load
 load_path = 'models/'
 
 input_shape = (3,436,3,436,3)
-#model = se_net.build_model(input_shape=input_shape, summary=True, n_sais=9)
-hci = load.load_hci(img_shape=input_shape, predict=True)
+hci = functools.partial(load_data.dataset_gen, 
+                            load_sintel=False, load_hci=True, crop=False, window_size=32,
+                            augment_sintel=False, augment_hci=False,
+                            batch_size=1)
+hci = tf.data.Dataset.from_generator(hci,
+      output_signature=(tf.TensorSpec(shape=(1,) + input_shape, dtype=tf.int8),
+                        tf.TensorSpec(shape=(1,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 model = keras.models.load_model(load_path + 'model0')
 predictions = model.predict(hci, batch_size=1, workers=4)
+
+for i in range(predictions.shape[0]):
+    print(predcitions[i].shape)
+    np.save(f'predictions/pred_{i}', predictions[i])
 
 
 
