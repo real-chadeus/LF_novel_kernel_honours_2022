@@ -11,21 +11,23 @@ d_map = np.load(data_path + '/hci_dataset/additional/antinous/stacked/center_dis
 #plt.show()
 #plt.imshow(np.swapaxes(d_map, 0,1), interpolation='nearest')
 #plt.show()
-img = Image.open(data_path + '/hci_dataset/additional/antinous/stacked/stacked.png')
+img = Image.open(data_path + '/hci_dataset/additional/museum/stacked/stacked.png')
 img = np.asarray(img)
 img = img.reshape((9,512,9,512,3), order='F')
 img = np.moveaxis(img, 2, 3)
 center1 = img[4, :, :, 4, :]
 plt.imshow(center1)
 plt.show()
-print(center1.shape)
-for x in range(15):
-    for y in range(15): 
-        crop_img = img[4, 32*x:32*(x+1), 32*y:32*(y+1), 4, :]
-        crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
-        print(crop_map)
-        plt.imshow(crop_img)
-        plt.show()
+crop_img = img[4, 32*2:32*3, 32*2:32*3, 4, :]
+crop_map = d_map[32*2:32*3,32*2:32*3]
+print(crop_img/255)
+#for x in range(15):
+#    for y in range(15): 
+#        crop_img = img[4, 32*x:32*(x+1), 32*y:32*(y+1), 4, :]
+#        crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
+#        print(crop_map)
+#        plt.imshow(crop_img)
+#        plt.show()
 
 
 #d_map = np.load(data_path + '/Sintel_LF/Sintel_LFV_9x9_with_all_disp/chickenrun_3/stacked/000_center.npy')

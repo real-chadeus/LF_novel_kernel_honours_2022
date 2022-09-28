@@ -50,7 +50,7 @@ class DepthCueExtractor(tf.keras.Model):
             for i in range(self.n_filters):
                 curr_map = f_maps[b, :, :, i]
                 curr_map = tf.squeeze(curr_map)
-                height_vectors = tf.math.reduce_mean(curr_map, axis=0)  
+                height_vectors = tf.math.reduce_sum(curr_map, axis=0)  
                 mask_op = mask_op.write(i, height_vectors)
             masks = masks.write(b, mask_op.stack())
         masks = masks.stack()
@@ -80,52 +80,10 @@ class DepthCueExtractor(tf.keras.Model):
                                         self.n_filters,
                                         ] + lfi.shape[1:])
         results = tf.transpose(results, perm=[0,2,3,4,5,1])
-        results = tf.reduce_sum(results, axis=-2)
+        # aggregate over angular dimensions
+        results = tf.math.reduce_sum(results, axis=[1, -2])
+        #results = tf.reshape(results, [self.batch_size, 81, results.shape[3], results.shape[4], self.n_filters])
         return results
-
-
-def aggregate(cost_volume):
-    # aggregate cost volume
-    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(cost_volume)
-    X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
-    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
-
-    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
-
-    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
-
-    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
-
-    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
-    X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
-    
-    return X
-    
-
-def combine(multi_view, depth_cues):
-    # combine monocular depth cues with multi-view features 
-    X = depth_cues * multi_view 
-    X = layers.LayerNormalization()(X)
-
-    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
-
-    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
-
-    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
-
-    X = layers.Conv2D(filters=170, kernel_size=(3,3), padding='same')(X)
-
-    return X
 
 def generate_cost(f_maps, n_filters=24):
     map_shape = f_maps[:,:,:,:,0].shape
@@ -152,6 +110,66 @@ def generate_cost(f_maps, n_filters=24):
                             (map_shape[1], 17, map_shape[2], map_shape[3], n_filters))
     return cost_volume
 
+def aggregate(cost_volume):
+    # aggregate cost volume
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(cost_volume)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=162, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+    
+    return X
+    
+
+def combine(multi_view, depth_cues):
+    # combine monocular depth cues with multi-view features 
+    X = depth_cues + multi_view 
+
+    X = layers.Conv3D(filters=160, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=160, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=160, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=160, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=81, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv3D(filters=17, kernel_size=(3,3,3), padding='same')(X)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    return X
+
+
 def feature_extractor(X, n_sais=81, monocular=False):
 
     if monocular:
@@ -170,38 +188,46 @@ def feature_extractor(X, n_sais=81, monocular=False):
         X = layers.LeakyReLU()(X)
         X = layers.LayerNormalization()(X)
 
-        X = layers.Conv2D(filters=243, kernel_size=(3,3), padding='same')(X)
+        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
         X = layers.LeakyReLU()(X)
         X = layers.LayerNormalization()(X)
 
 
     else:
         # lfi feature extraction and cost volume creation 
-        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X = layers.AveragePooling3D(pool_size=(2,2,2), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.UpSampling3D(size=(1,2,2))(X)
 
-        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
-        X = layers.AveragePooling3D(pool_size=(1,1,1))(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X = layers.AveragePooling3D(pool_size=(4,4,4), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.UpSampling3D(size=(1,4,4))(X)
 
-        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
-        X = layers.AveragePooling3D(pool_size=(1,1,1))(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X = layers.AveragePooling3D(pool_size=(8,8,8), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.UpSampling3D(size=(1,8,8))(X)
 
-        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
-        X = layers.AveragePooling3D(pool_size=(1,1,1))(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X = layers.AveragePooling3D(pool_size=(16,16,16), padding='same')(X)
+        X = layers.LeakyReLU()(X)
+        X = layers.UpSampling3D(size=(1,16,16))(X)
 
-        X = layers.Conv3D(filters=162, kernel_size=(1,3,3), padding='same')(X)
+        X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
 
     return X
 
 def disp_regression(X):
     shape = X.shape
-    # disparity_values = np.linspace(-4, 4, 9)
     disparity_values = np.linspace(-4, 4, 17)
     x = tf.constant(disparity_values, shape=[17])
     x = tf.expand_dims(tf.expand_dims(tf.expand_dims(tf.expand_dims(x, 0), 0), 0), 0)
-    x = tf.tile(x, (shape[0], shape[4], shape[2], shape[3], 1))
-    x = tf.transpose(x, perm=[0,4,2,3,1])
+    x = tf.tile(x, (shape[0], shape[1], shape[2], shape[3], 1))
     out = multiply([X,x])
-    out = tf.math.reduce_sum(out, axis=[0,1,-1])
+    out = tf.squeeze(out)
+    out = tf.math.reduce_sum(out, axis=-1)
     return out
 
 def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
@@ -211,7 +237,7 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     '''
     # initial input mapping
     inputs = keras.Input(shape=input_shape, name='model_input', batch_size=batch_size)
-    X = layers.BatchNormalization()(inputs)
+    X = inputs
     
     # monocular feature depth cue from center view
     center = angres//2 
@@ -228,8 +254,7 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     # integrate cost volume & depth cues
     X = combine(X, depth_cues)
 
-    X = generate_cost(X, n_filters=170) 
-    X = layers.Softmax()(X)
+    #X = generate_cost(X, n_filters=170) 
     predictions = disp_regression(X)
 
     model = models.Model(inputs=inputs, outputs=predictions) 
