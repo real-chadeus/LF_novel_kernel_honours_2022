@@ -133,8 +133,6 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
             imgs.append(new_img)
             imgs.append(new_disp)
     
-    if use_gen == False:
-        return imgs, disps
 
 def random_crop(img, disp):
     xy_range = np.arange(0, 16)
@@ -147,7 +145,7 @@ def random_crop(img, disp):
 
 def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32,
                 load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000,
-                validation=False):
+                train=True, validation=False, test=False):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
     Loads in order of Sintel -> HCI
@@ -211,55 +209,87 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
             hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
             for d in hci_r_dirs:
                 r_dir = d.path
-                if 'test' in r_dir:
-                    continue
-                # load images
-                img = Image.open(r_dir + '/stacked/stacked.png')
-                img = np.asarray(img)
-                img = img.reshape((9,512,9,512,3), order='F')
-                img = np.moveaxis(img, 2, 3)
-                # take the red channel
-                lfi = img[:,:,:,:,0]
+                if train:
+                    if 'additional' not in r_dir:
+                        continue
+                    img = Image.open(r_dir + '/stacked/stacked.png')
+                    img = np.asarray(img)
+                    img = img.reshape((9,512,9,512,3), order='F')
+                    img = np.moveaxis(img, 2, 3)
+                    img = img/255
+                    lfi = 0.2126 * img[:,:,:,:,0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
 
-                # load and normalize disparity maps
-                d_map = np.load(r_dir + '/stacked/center_disp.npy')
-                d_map = np.swapaxes(d_map, 0, 1)
-                #d_map = d_map/np.abs(np.amax(d_map))
+                    d_map = np.load(r_dir + '/stacked/center_disp.npy')
+                    d_map = np.swapaxes(d_map, 0, 1)
 
-                if augment_hci:
-                    ds = (lfi, d_map)
-                    for im, m in augment(ds, img_shape=(9,512,512,9), num_flips=25, num_rot=25, num_contrast=25,
-                                               num_noise=25, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
-                        if len(imgs) < batch_size:
-                            crop_img, crop_map = random_crop(im, m) 
-                            imgs.append(crop_img/255)
-                            maps.append(crop_map) 
-                        if len(imgs) == batch_size:
-                            yield (np.asarray(imgs), np.asarray(maps))
-                            imgs = []
-                            maps = []
-
-                if validation:
-                    for x in range(16):
-                        for y in range(16): 
-                            crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
-                            crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
+                    if augment_hci:
+                        ds = (lfi, d_map)
+                        for im, m in augment(ds, img_shape=(9,512,512,9), num_flips=150, num_rot=150, num_contrast=0,
+                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
                             if len(imgs) < batch_size:
-                                imgs.append(crop_img/255)
+                                crop_img, crop_map = random_crop(im, m) 
+                                imgs.append(crop_img)
                                 maps.append(crop_map) 
                             if len(imgs) == batch_size:
                                 yield (np.asarray(imgs), np.asarray(maps))
                                 imgs = []
                                 maps = []
-                else:
+
                     if len(imgs) < batch_size:
                         crop_img, crop_map = random_crop(lfi, d_map) 
-                        imgs.append(crop_img/255)
+                        imgs.append(crop_img)
                         maps.append(crop_map) 
                     if len(imgs) == batch_size:
                         yield (np.asarray(imgs), np.asarray(maps))
                         imgs = []
                         maps = []
+
+                if validation:
+                    if 'stratified' not in r_dir and 'training' not in r_dir:
+                        continue
+                    img = Image.open(r_dir + '/stacked/stacked.png')
+                    img = np.asarray(img)
+                    img = img.reshape((9,512,9,512,3), order='F')
+                    img = np.moveaxis(img, 2, 3)
+                    img = img/255
+                    lfi = 0.2126 * img[:,:,:,:,0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
+
+                    d_map = np.load(r_dir + '/stacked/center_disp.npy')
+                    d_map = np.swapaxes(d_map, 0, 1)
+
+                    for x in range(16):
+                        for y in range(16): 
+                            crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
+                            crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
+                            if len(imgs) < batch_size:
+                                imgs.append(crop_img)
+                                maps.append(crop_map) 
+                            if len(imgs) == batch_size:
+                                yield (np.asarray(imgs), np.asarray(maps))
+                                imgs = []
+                                maps = []
+                if test:
+                    if 'test' not in r_dir:
+                        continue
+                    img = Image.open(r_dir + '/stacked/stacked.png')
+                    img = np.asarray(img)
+                    img = img.reshape((9,512,9,512,3), order='F')
+                    img = np.moveaxis(img, 2, 3)
+                    img = img/255
+                    lfi = 0.2126 * img[:,:,:,:,0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
+
+                    for x in range(16):
+                        for y in range(16): 
+                            crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
+                            crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
+                            if len(imgs) < batch_size:
+                                imgs.append(crop_img)
+                                maps.append(crop_map) 
+                            if len(imgs) == batch_size:
+                                yield (np.asarray(imgs), np.asarray(maps))
+                                imgs = []
+                                maps = []
+
 
 
 

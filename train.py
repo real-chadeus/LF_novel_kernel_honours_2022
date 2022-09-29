@@ -99,7 +99,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 if __name__ == "__main__":
    
     # initial parameters 
-    batch_size = 1
+    batch_size = 8
     #n_batches = 1500
     #input_shape = (512, 512, 9, 9, 3)
     #h = input_shape[0]
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     hci_val = functools.partial(load_data.dataset_gen, 
                                 load_sintel=False, load_hci=True, crop=True, window_size=32,
                                 augment_sintel=False, augment_hci=False,
-                                batch_size=batch_size, validation=True)
+                                batch_size=batch_size, validation=True, train=False)
     hci_val = tf.data.Dataset.from_generator(hci_val,
           output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
                             tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=50, model_name='hci_only4', 
+            val_set=hci_val, epochs=50, model_name='hci_only5', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
