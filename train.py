@@ -48,7 +48,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.001
+    lr = 0.0001
     #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
     #    initial_learning_rate=0.00025,
     #    decay_steps=2500,
@@ -82,7 +82,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     gen = functools.partial(load_data.dataset_gen, 
                             load_sintel=load_sintel, load_hci=load_hci, crop=crop, window_size=window_size,
                             augment_sintel=augment_sintel, augment_hci=augment_hci,
-                            batch_size=batch_size)
+                            batch_size=batch_size, train=True)
 
     training = tf.data.Dataset.from_generator(gen,
           output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
@@ -91,7 +91,8 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     model.fit(x=training, epochs=epochs, validation_data=val,
                 validation_batch_size=batch_size, 
                 callbacks=[TqdmCallback(verbose=2), 
-                            checkpoint, logger, memory_cleaner])
+                            checkpoint, logger, memory_cleaner],
+                            workers=8)
 
     model.save(save_path + model_name)
 
@@ -99,7 +100,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 if __name__ == "__main__":
    
     # initial parameters 
-    batch_size = 8
+    batch_size = 1
     #n_batches = 1500
     #input_shape = (512, 512, 9, 9, 3)
     #h = input_shape[0]
@@ -124,7 +125,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=50, model_name='hci_only5', 
+            val_set=hci_val, epochs=100, model_name='hci_only5', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()

@@ -57,7 +57,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
             d_axis2 = 1
             
         new_img = np.rot90(img, k=1, axes=(axis1,axis2))
-        new_disp = np.rot90(disp, k=0, axes=(d_axis1,d_axis2))
+        new_disp = np.rot90(disp, k=1, axes=(d_axis1,d_axis2))
         imgs.append(new_img)
         imgs.append(new_disp)
         if use_gen:
