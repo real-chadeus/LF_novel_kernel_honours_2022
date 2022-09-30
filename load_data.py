@@ -222,21 +222,21 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     d_map = np.load(r_dir + '/stacked/center_disp.npy')
                     d_map = np.swapaxes(d_map, 0, 1)
 
+                    crop_img, crop_map = random_crop(lfi, d_map) 
+
                     if augment_hci:
-                        ds = (lfi, d_map)
-                        for im, m in augment(ds, img_shape=(9,512,512,9), num_flips=150, num_rot=150, num_contrast=0,
-                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
+                        ds = (crop_img, crop_map)
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=150, num_rot=150, num_contrast=0,
+                                                   num_noise=150, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
                             if len(imgs) < batch_size:
-                                crop_img, crop_map = random_crop(im, m) 
-                                imgs.append(crop_img)
-                                maps.append(crop_map) 
+                                imgs.append(im)
+                                maps.append(m) 
                             if len(imgs) == batch_size:
                                 yield (np.asarray(imgs), np.asarray(maps))
                                 imgs = []
                                 maps = []
 
                     if len(imgs) < batch_size:
-                        crop_img, crop_map = random_crop(lfi, d_map) 
                         imgs.append(crop_img)
                         maps.append(crop_map) 
                     if len(imgs) == batch_size:
@@ -268,6 +268,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                 yield (np.asarray(imgs), np.asarray(maps))
                                 imgs = []
                                 maps = []
+
                 if test:
                     if 'test' not in r_dir:
                         continue

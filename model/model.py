@@ -88,13 +88,13 @@ class DepthCueExtractor(tf.keras.Model):
 
 def aggregate(cost_volume):
     # aggregate cost volume
-    X = layers.Conv2D(filters=162, kernel_size=(1,1), padding='same')(cost_volume)
+    X = layers.Conv2D(filters=512, kernel_size=(1,1), padding='same')(cost_volume)
 
-    X = layers.Conv2D(filters=162, kernel_size=(1,1), padding='same')(X)
+    X = layers.Conv2D(filters=512, kernel_size=(1,1), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
     X = layers.LayerNormalization(scale=True)(X)
 
-    X = layers.Conv2D(filters=162, kernel_size=(1,1), padding='same')(X)
+    X = layers.Conv2D(filters=512, kernel_size=(1,1), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
     X = layers.LayerNormalization(scale=True)(X)
 
@@ -161,22 +161,22 @@ def feature_extractor(X, n_sais=81, monocular=False):
 
     else:
         # lfi feature extraction and cost volume creation 
-        X1 = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X1 = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
         X1 = layers.AveragePooling3D(pool_size=(9,2,2), padding='same')(X1)
         X1 = layers.LeakyReLU(0.1)(X1)
         X1 = layers.UpSampling3D(size=(1,2,2))(X1)
 
-        X2 = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X2 = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
         X2 = layers.AveragePooling3D(pool_size=(1,4,4), padding='same')(X2)
         X2 = layers.LeakyReLU(0.1)(X2)
         X2 = layers.UpSampling3D(size=(1,4,4))(X2)
 
-        X3 = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X3 = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
         X3 = layers.AveragePooling3D(pool_size=(1,8,8), padding='same')(X3)
         X3 = layers.LeakyReLU(0.1)(X3)
         X3 = layers.UpSampling3D(size=(1,8,8))(X3)
 
-        X4 = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
+        X4 = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
         X4 = layers.AveragePooling3D(pool_size=(1,16,16), padding='same')(X4)
         X4 = layers.LeakyReLU()(X4)
         X4 = layers.UpSampling3D(size=(1,16,16))(X4)

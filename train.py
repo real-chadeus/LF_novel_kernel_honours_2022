@@ -2,7 +2,6 @@ import pathlib, datetime
 import gc
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
 import tensorflow_addons as tfa
 import load_data
@@ -55,7 +54,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     #    decay_rate=0.9)
 
     loss = losses.MeanAbsoluteError()
-    optimizer = Adam(learning_rate=lr)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
@@ -125,7 +124,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=100, model_name='hci_only5', 
+            val_set=hci_val, epochs=100, model_name='test', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()

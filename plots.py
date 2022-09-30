@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-save_dir = 'models/'
+save_dir = 'saved_models/'
 
 def plot_mse(model_name='model1'):
     load_dir = save_dir + model_name + '/'
@@ -70,6 +70,7 @@ def plot_badpix(model_name='model1'):
 
 
 
+plot_mse(model_name='hci_only5')
 
 
 

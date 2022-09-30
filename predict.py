@@ -1,18 +1,15 @@
 import numpy as np
-import os
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
-import sys, glob, os, random
-import pandas as pd
-import scipy.io as sio
 import kernel.lfi_se_net as se_net
 import preprocessing.flatten as flatten
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import load
+from PIL import Image
 
-load_path = 'models/'
+load_path = 'saved_models/'
 
 input_shape = (3,436,3,436,3)
 hci = functools.partial(load_data.dataset_gen, 
@@ -22,12 +19,13 @@ hci = functools.partial(load_data.dataset_gen,
 hci = tf.data.Dataset.from_generator(hci,
       output_signature=(tf.TensorSpec(shape=(1,) + input_shape, dtype=tf.int8),
                         tf.TensorSpec(shape=(1,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
-model = keras.models.load_model(load_path + 'model0')
-predictions = model.predict(hci, batch_size=1, workers=4)
+model = keras.models.load_model(load_path + 'hci_only5')
+predictions = model.predict(hci, batch_size=1, workers=8)
 
 for i in range(predictions.shape[0]):
     print(predcitions[i].shape)
-    np.save(f'predictions/pred_{i}', predictions[i])
+    disp_map = 
+    np.save(f'predictions/pred_{i}.npy', predictions[i])
 
 
 
