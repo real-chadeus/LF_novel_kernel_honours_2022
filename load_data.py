@@ -30,108 +30,75 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     for i in range(num_flips):
         axes = [1,2]
         flip_axis = np.random.choice(axes)
-        if flip_axis == 2:
-            d_axis = 1
-        else:
+        if flip_axis == 1:
             d_axis = 0
+        else:
+            d_axis = 1
 
         new_img = np.flip(img, axis=flip_axis)
         new_disp = np.flip(disp, axis=d_axis)
-        if use_gen:
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+
+        yield (new_img, new_disp)
     
     # random 90 degree rotate
     for i in range(num_rot):
-        axes = [1,2]
-        axis1 = np.random.choice(axes)
-        if axis1 == 2:
-            axis2 = 1
-            d_axis1 = 1
-            d_axis2 = 0
-        else:
-            axis2 = 2
-            d_axis1 = 0
-            d_axis2 = 1
+        rots = [0,1,2,3]
+        n_rot = np.random.choice(rots)
             
-        new_img = np.rot90(img, k=1, axes=(axis1,axis2))
-        new_disp = np.rot90(disp, k=1, axes=(d_axis1,d_axis2))
+        new_img = np.rot90(img, k=n_rot, axes=(1,2))
+        new_disp = np.rot90(disp, k=n_rot, axes=(0,1))
         imgs.append(new_img)
         imgs.append(new_disp)
-        if use_gen:
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+        yield (new_img, new_disp)
     
-    # Gaussian noise
+    # random noise
     for i in range(num_noise):
-        noise = np.random.normal(loc=0.0, scale=3, size=img.shape) 
-        new_img = img + noise
+        noise = np.random.uniform(0, 1, size=img.shape) 
+        new_img = img * noise
         new_disp = disp
-        if use_gen:
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+        yield (new_img, new_disp)
 
     # random contrast
     for i in range(num_contrast):
         factor = np.random.uniform(-3,3)
         new_img = tf.image.adjust_contrast(img, contrast_factor=factor).numpy()
         new_disp = disp
-        if use_gen:
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+        yield (new_img, new_disp)
 
     # random saturation
     for i in range(num_sat):
         factor = np.random.uniform(-3,3)
         new_img = tf.image.adjust_saturation(img, saturation_factor=factor).numpy() 
         new_disp = disp
-        if use_gen:
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+        yield (new_img, new_disp)
 
     # random brightness
     for i in range(num_bright):
         factor = np.random.uniform(-1,1)
         new_img = tf.image.adjust_brightness(img, delta=factor).numpy()
         new_disp = disp
-        if use_gen:
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+        yield (new_img, new_disp)
 
     # random gamma
     for i in range(num_gamma):
         factor = np.random.uniform(0,3)
         new_img = tf.image.adjust_gamma(img, gamma=factor).numpy()
         new_disp = disp
-        if use_gen:
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+        yield (new_img, new_disp)
 
     # random hue
     for i in range(num_hue):
         factor = np.random.uniform(-1,1)
         new_img = tf.image.adjust_hue(img, delta=factor).numpy()
         new_disp = disp
-        if use_gen:
-            #new_img = np.expand_dims(new_img, axis=0) # for using tf.dataset.Dataset datasets
-            yield (new_img, new_disp)
-        else:
-            imgs.append(new_img)
-            imgs.append(new_disp)
+        yield (new_img, new_disp)
+
+    # random scale
+    for i in range(num_scale):
+        factor = np.random.uniform(0.25, 1)
+        new_img = img * factor
+        new_disp = disp * factor
+        yield (new_img, new_disp)
     
 
 def random_crop(img, disp):
@@ -226,8 +193,8 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=150, num_rot=150, num_contrast=0,
-                                                   num_noise=150, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=72, num_rot=72, num_scale=72, num_contrast=0,
+                                                   num_noise=72, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
                             if len(imgs) < batch_size:
                                 imgs.append(im)
                                 maps.append(m) 

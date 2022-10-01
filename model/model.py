@@ -80,8 +80,9 @@ class DepthCueExtractor(tf.keras.Model):
                                         self.n_filters,
                                         ] + lfi.shape[1:])
         results = tf.transpose(results, perm=[0,2,3,4,5,1])
+        print(results.shape)
         # aggregate over angular dimensions
-        results = tf.math.reduce_mean(results, axis=[1, -2])
+        results = tf.math.reduce_min(results, axis=[1, -2])
         #results = tf.reshape(results, [self.batch_size, 81, results.shape[3], results.shape[4], self.n_filters])
         return results
 
@@ -92,15 +93,15 @@ def aggregate(cost_volume):
 
     X = layers.Conv2D(filters=512, kernel_size=(1,1), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
-    X = layers.LayerNormalization(scale=True)(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(1,1), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
-    X = layers.LayerNormalization(scale=True)(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(1,1), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
-    X = layers.LayerNormalization(scale=True)(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(1,1), padding='same')(X)
     X = layers.Activation('softmax')(X)
@@ -111,26 +112,27 @@ def aggregate(cost_volume):
 def combine(multi_view, depth_cues):
     # combine monocular depth cues with multi-view features 
     X = tf.concat([depth_cues, multi_view], axis=0) 
-    X = tf.math.reduce_euclidean_norm(X, axis=0)
+    X = tf.math.reduce_sum(X, axis=0)
     X = tf.expand_dims(X, axis=0)
+    #X = multi_view * depth_cues
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
-    X = layers.LayerNormalization(scale=True)(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
-    X = layers.LayerNormalization(scale=True)(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
-    X = layers.LayerNormalization(scale=True)(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=81, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU(0.1)(X)
-    X = layers.LayerNormalization(scale=True)(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=17, kernel_size=(3,3), padding='same')(X)
 
@@ -221,7 +223,6 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     # integrate cost volume & depth cues
     X = combine(X, depth_cues)
 
-    #X = generate_cost(X, n_filters=170) 
     predictions = disp_regression(X)
 
     model = models.Model(inputs=inputs, outputs=predictions) 

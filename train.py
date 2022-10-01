@@ -64,7 +64,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
                             ])
 
     # checkpoint
-    checkpoint = ModelCheckpoint(filepath = 'checkpoints/' + model_name, monitor='val_mean_squared_error',
+    checkpoint = ModelCheckpoint(filepath = 'checkpoints/' + model_name, monitor='val_BadPix7',
             save_best_only=True, save_weights_only=False, verbose=1, mode='min')
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=100, model_name='test', 
+            val_set=hci_val, epochs=50, model_name='test_noiseonly', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
