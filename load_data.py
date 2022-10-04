@@ -14,7 +14,7 @@ import preprocessing.hci_dataset_tools.file_io as hci_io
 data_path = '../../datasets'
 
 def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contrast=1,
-            num_noise=1, num_sat=1, num_bright=1, num_gamma=1, 
+            num_noise=1, num_sat=1, num_bright=1, num_gamma=1, num_scale=1, 
             num_hue=1, use_gen=True):
     '''
     custom augment function
@@ -55,7 +55,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     for i in range(num_noise):
         noise = np.random.uniform(0, 1, size=img.shape) 
         new_img = img * noise
-        new_disp = disp
+        new_disp = disp * noise[4, :, :, 4]
         yield (new_img, new_disp)
 
     # random contrast
@@ -193,8 +193,8 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=72, num_rot=72, num_scale=72, num_contrast=0,
-                                                   num_noise=72, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=100, num_rot=100, num_scale=100, num_contrast=0,
+                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
                             if len(imgs) < batch_size:
                                 imgs.append(im)
                                 maps.append(m) 

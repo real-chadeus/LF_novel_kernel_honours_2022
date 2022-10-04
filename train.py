@@ -47,14 +47,14 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.0001
+    lr = 0.001
     #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
     #    initial_learning_rate=0.00025,
     #    decay_steps=2500,
     #    decay_rate=0.9)
 
     loss = losses.MeanAbsoluteError()
-    optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
     # model compile
     model.compile(optimizer=optimizer, loss=loss, 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=50, model_name='test_noiseonly', 
+            val_set=hci_val, epochs=75, model_name='test5', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
