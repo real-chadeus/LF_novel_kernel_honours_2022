@@ -190,6 +190,8 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     d_map = np.swapaxes(d_map, 0, 1)
 
                     crop_img, crop_map = random_crop(lfi, d_map) 
+                    print(crop_img)
+                    print(crop_map)
 
                     if augment_hci:
                         ds = (crop_img, crop_map)

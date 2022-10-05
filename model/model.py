@@ -53,7 +53,7 @@ class DepthCueExtractor(tf.keras.Model):
                 curr_map = f_maps[b, :, :, i]
                 #tf.print(curr_map, output_stream = tf.compat.v1.logging.info, summarize=-1)
                 curr_map = tf.squeeze(curr_map)
-                height_vectors = tf.math.reduce_sum(curr_map, axis=0)  
+                height_vectors = tf.math.reduce_sum(curr_map, axis=0) 
                 mask_op = mask_op.write(i, height_vectors)
             masks = masks.write(b, mask_op.stack())
         masks = masks.stack()
@@ -66,12 +66,13 @@ class DepthCueExtractor(tf.keras.Model):
         self.height(f_maps)
         #self.relative_size(f_maps)  
         results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
+        tf.print(lfi, output_stream = tf.compat.v1.logging.info, summarize=-1)
         for b in range(self.batch_size):
             result = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
                 #s_feat = lfi[b, :, :, :, :] + self.s_weight[b, i]
-                h_feat = tf.transpose(lfi[b, :, :, :], perm=[0,2,1]) + self.h_mask[b, i, :]
-                h_feat = tf.transpose(h_feat, perm=[0,2,1])
+                h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) + self.h_mask[b, i, :]
+                h_feat = tf.transpose(h_feat, perm=[0,3,2,1])
                 result = result.write(i, h_feat)
                 #combined_feat = s_feat * h_feat
                 #result = result.write(i, combined_feat)
@@ -82,10 +83,9 @@ class DepthCueExtractor(tf.keras.Model):
                                  shape=[self.batch_size,
                                         self.n_filters,
                                         ] + lfi.shape[1:])
-        results = tf.transpose(results, perm=[0,4,2,3,1])
+        results = tf.transpose(results, perm=[0,2,3,4,5,1])
         # aggregate over angular dimensions
-        results = tf.math.reduce_sum(results, axis=1)
-        #results = tf.reshape(results, [self.batch_size, 81, results.shape[3], results.shape[4], self.n_filters])
+        results = tf.math.reduce_mean(results, axis=[1,4])
         #tf.print(results, output_stream = tf.compat.v1.logging.info, summarize=-1)
         return results
 
@@ -96,41 +96,33 @@ def aggregate(cost_volume):
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.ReLU()(X)
-    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.ReLU()(X)
-    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-    X = layers.ReLU()(X)
-    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
 
     return X
     
 
 def combine(multi_view, depth_cues):
     # combine monocular depth cues with multi-view features 
-    X = depth_cues + multi_view 
-    X = tf.math.reduce_sum(X, axis=0)
-    X = tf.expand_dims(X, axis=0)
-    #X = multi_view * depth_cues
+    X = multi_view * depth_cues 
+    #X = tf.math.reduce_sum(X, axis=0)
+    #X = tf.expand_dims(X, axis=0)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
-    X = layers.ReLU()(X)
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
-    X = layers.ReLU()(X)
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-    X = layers.ReLU()(X)
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=81, kernel_size=(3,3), padding='same')(X)
@@ -148,18 +140,14 @@ def feature_extractor(X, monocular=False):
         # depth cue extraction
         X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
         X = layers.LayerNormalization()(X)
-        X = layers.ReLU()(X)
 
         X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
         X = layers.LayerNormalization()(X)
-        X = layers.ReLU()(X)
 
         X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-        X = layers.ReLU()(X)
         X = layers.LayerNormalization()(X)
 
         X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-        X = layers.ReLU()(X)
         X = layers.LayerNormalization()(X)
 
         out = X
@@ -208,19 +196,19 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     inputs = keras.Input(shape=input_shape, name='model_input', batch_size=batch_size)
     X = inputs
 
+    # monocular depth cues
+    center = angres//2 
+    center_view = X[:,center,:,:,center]
+    center_view = tf.expand_dims(center_view, axis=-1)
+    f_maps = feature_extractor(center_view, monocular=True)
+    depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
+                        n_filters=162, batch_size=batch_size)(X, f_maps)
+    depth_cues = layers.ReLU()(depth_cues)
+    depth_cues = layers.LayerNormalization()(depth_cues)
+
     # multi-view feature extraction + cost volume creation
     X = feature_extractor(X)
     X = aggregate(X)
-
-    # monocular depth cues
-    #center = angres//2 
-    #center_view = X[:,center,:,:,center]
-    #center_view = tf.expand_dims(center_view, axis=-1)
-    f_maps = feature_extractor(X, monocular=True)
-    depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
-                        n_filters=162, batch_size=batch_size)(X, f_maps)
-    depth_cues = layers.LayerNormalization()(depth_cues)
-
     # integrate cost volume & depth cues
     X = combine(X, depth_cues)
     #X = layers.Activation('log_softmax')(X)
