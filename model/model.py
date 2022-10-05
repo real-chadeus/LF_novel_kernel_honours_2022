@@ -54,7 +54,7 @@ class DepthCueExtractor(tf.keras.Model):
                 curr_map = f_maps[b, :, :, i]
                 #tf.print(curr_map, output_stream = tf.compat.v1.logging.info, summarize=-1)
                 curr_map = tf.squeeze(curr_map)
-                height_vectors = tf.math.reduce_sum(curr_map, axis=0) 
+                height_vectors = tf.math.reduce_mean(curr_map, axis=0) 
                 mask_op = mask_op.write(i, height_vectors)
             masks = masks.write(b, mask_op.stack())
         masks = masks.stack()
@@ -92,6 +92,9 @@ class DepthCueExtractor(tf.keras.Model):
 
 
 class Tester(tf.keras.Model):
+    '''
+    extracts monocular depth cue information
+    '''
     def __init__(self):
         super(Tester, self).__init__(name='tester')
 
@@ -201,9 +204,7 @@ def disp_regression(X):
     x = tf.tile(x, (shape[0], shape[1], shape[2], 1))
     out = multiply([X,x])
     out = tf.squeeze(out)
-    out =  	The output stream, logging level, or file to print to. Defaults to sys.stderr, but sys.stdout, tf.compat.v1.logging.info, tf.compat.v1.logging.warning, tf.compat.v1.logging.error, absl.logging.info, absl.logging.warning and absl.logging.error are also supported. To print to a file, pass a string started with "file://" followed by the file path, e.g., "file:///tmp/foo.out".
-summarize 	The first and last summarize elements within each dimension are recursively printed per Tensor. If None, then the first 3 and last 3 elements of each dimension are printed for each tensor. If set to -1, it will print all elements of every tensor.
-septf.math.reduce_sum(out, axis=-1)
+    out = tf.math.reduce_sum(out, axis=-1)
     return out
 
 def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
@@ -213,8 +214,8 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     '''
     # initial input mapping
     inputs = layers.Input(shape=input_shape, name='model_input', batch_size=batch_size)
+    #X = Tester()(inputs)
     X = inputs
-    X = Tester()(X)
 
     # monocular depth cues
     center = angres//2 

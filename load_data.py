@@ -199,7 +199,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                 imgs.append(im)
                                 maps.append(m) 
                             if len(imgs) == batch_size:
-                                yield (np.asarray(imgs), np.asarray(maps))
+                                yield (imgs, maps)
                                 imgs = []
                                 maps = []
 
@@ -207,7 +207,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                         imgs.append(crop_img)
                         maps.append(crop_map) 
                     if len(imgs) == batch_size:
-                        yield (np.asarray(imgs), np.asarray(maps))
+                        yield (imgs, maps)
                         imgs = []
                         maps = []
 
@@ -232,7 +232,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                 imgs.append(crop_img)
                                 maps.append(crop_map) 
                             if len(imgs) == batch_size:
-                                yield (np.asarray(imgs), np.asarray(maps))
+                                yield (imgs, maps)
                                 imgs = []
                                 maps = []
 
@@ -254,7 +254,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                 imgs.append(crop_img)
                                 maps.append(crop_map) 
                             if len(imgs) == batch_size:
-                                yield (np.asarray(imgs), np.asarray(maps))
+                                yield (imgs, maps)
                                 imgs = []
                                 maps = []
 

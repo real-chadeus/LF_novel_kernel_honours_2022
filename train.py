@@ -78,13 +78,21 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 
     # train model
     val = val_set 
-    gen = functools.partial(load_data.dataset_gen, 
-                            load_sintel=load_sintel, load_hci=load_hci, crop=crop, window_size=window_size,
-                            augment_sintel=augment_sintel, augment_hci=augment_hci,
-                            batch_size=batch_size, train=True)
+    #training = load_data.dataset_gen(augment_sintel=augment_sintel, augment_hci=augment_hci, crop=True, window_size=32,
+    #            load_sintel=load_sintel, load_hci=load_hci, angres=9, batch_size=batch_size, batches=1000,
+    #            train=True, validation=False, test=False)
 
-    training = tf.data.Dataset.from_generator(gen,
-          output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
+    gen = load_data.dataset_gen
+
+    #gen = functools.partial(load_data.dataset_gen, 
+    #                        load_sintel=load_sintel, load_hci=load_hci, crop=crop, window_size=window_size,
+    #                        augment_sintel=augment_sintel, augment_hci=augment_hci,
+    #                        batch_size=batch_size, train=True)
+
+    training = tf.data.Dataset.from_generator(gen, 
+                    args= (augment_sintel, augment_hci, True, 32, load_sintel, 
+                           load_hci, 9, batch_size, 1000, True, False, False),
+                            output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                             tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     model.fit(x=training, epochs=epochs, validation_data=val,
@@ -100,11 +108,6 @@ if __name__ == "__main__":
    
     # initial parameters 
     batch_size = 1
-    #n_batches = 1500
-    #input_shape = (512, 512, 9, 9, 3)
-    #h = input_shape[0]
-    #w = input_shape[1]
-    #angres = input_shape[2]
     input_shape = (9,32,32,9)
 
     model = net.build_model(input_shape=input_shape, summary=True, 
