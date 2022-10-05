@@ -15,16 +15,13 @@ img = Image.open(data_path + '/hci_dataset/additional/vinyl/stacked/stacked.png'
 img = np.asarray(img)
 img = img.reshape((9,512,9,512,3), order='F')
 img = np.moveaxis(img, 2, 3)
+img = img/255
 img = 0.2126 * img[:, :, :, :, 0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
-noise = np.random.uniform(0,1,img.shape)
-img = img * noise
 center1 = img[4,:,:,4]
-center1 = center1/255
 plt.imshow(center1)
 plt.show()
 d_map = np.load(data_path + '/hci_dataset/additional/vinyl/stacked/center_disp.npy')
 d_map = np.swapaxes(d_map, 0, 1)
-d_map = d_map * noise[4, :, :, 4]
 plt.imshow(d_map, interpolation='nearest')
 plt.show()
 #for x in range(15):

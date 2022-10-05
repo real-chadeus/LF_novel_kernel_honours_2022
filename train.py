@@ -47,7 +47,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.001
+    lr = 0.00001
     #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
     #    initial_learning_rate=0.00025,
     #    decay_steps=2500,
@@ -64,7 +64,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
                             ])
 
     # checkpoint
-    checkpoint = ModelCheckpoint(filepath = 'checkpoints/' + model_name, monitor='val_BadPix7',
+    checkpoint = ModelCheckpoint(filepath = 'checkpoints/' + model_name, monitor='val_mean_squared_error',
             save_best_only=True, save_weights_only=False, verbose=1, mode='min')
     # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
@@ -90,10 +90,10 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     #                        batch_size=batch_size, train=True)
 
     training = tf.data.Dataset.from_generator(gen, 
-                    args= (augment_sintel, augment_hci, True, 32, load_sintel, 
+                     args=(augment_sintel, augment_hci, True, 32, load_sintel, 
                            load_hci, 9, batch_size, 1000, True, False, False),
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
-                            tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
+                                              tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     model.fit(x=training, epochs=epochs, validation_data=val,
                 validation_batch_size=batch_size, 
