@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from model.conv4d import Conv4D
 import tensorflow_addons as tfa
 from tensorflow.keras.layers import multiply
+import sys
 
 
 class DepthCueExtractor(tf.keras.Model):
@@ -66,7 +67,7 @@ class DepthCueExtractor(tf.keras.Model):
         self.height(f_maps)
         #self.relative_size(f_maps)  
         results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
-        tf.print(lfi, output_stream = tf.compat.v1.logging.info, summarize=-1)
+        #tf.print(lfi, output_stream = tf.compat.v1.logging.info, summarize=-1)
         for b in range(self.batch_size):
             result = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
@@ -90,20 +91,31 @@ class DepthCueExtractor(tf.keras.Model):
         return results
 
 
+class Tester(tf.keras.Model):
+    def __init__(self):
+        super(Tester, self).__init__(name='tester')
+
+    def call(self, X):
+        tf.print(X, output_stream = sys.stdout, summarize=-1)
+        return X
+
 def aggregate(cost_volume):
     # aggregate cost volume
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(cost_volume)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.ReLU()(X)
-
-    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-
-    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
     X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
 
     return X
     
@@ -117,12 +129,15 @@ def combine(multi_view, depth_cues):
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
     X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=81, kernel_size=(3,3), padding='same')(X)
@@ -135,46 +150,48 @@ def combine(multi_view, depth_cues):
 
 
 def feature_extractor(X, monocular=False):
+    # lfi feature extraction and cost volume creation 
+    X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
 
-    if monocular:
-        # depth cue extraction
-        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-        X = layers.LayerNormalization()(X)
+    X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
 
-        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-        X = layers.LayerNormalization()(X)
+    X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
 
-        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-        X = layers.LayerNormalization()(X)
+    X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
 
-        X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
-        X = layers.LayerNormalization()(X)
-
-        out = X
-
-    else:
-        # lfi feature extraction and cost volume creation 
-        X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
-        X = layers.ReLU()(X)
-        X = layers.LayerNormalization()(X)
-
-        X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
-        X = layers.ReLU()(X)
-        X = layers.LayerNormalization()(X)
-
-        X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
-        X = layers.ReLU()(X)
-        X = layers.LayerNormalization()(X)
-
-        X = layers.Conv3D(filters=512, kernel_size=(1,1,1), padding='same')(X)
-        X = layers.ReLU()(X)
-        X = layers.LayerNormalization()(X)
-
-        out = tf.math.reduce_mean(X, axis=1)
-        out = layers.ReLU()(out)
-        out = layers.LayerNormalization()(out)
+    out = tf.math.reduce_mean(X, axis=1)
+    out = layers.ReLU()(out)
+    out = layers.LayerNormalization()(out)
 
     return out
+
+def monocular_extractor(X):
+    # feature extraction for center view
+    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
+    X = layers.ReLU()(X)
+    X = layers.LayerNormalization()(X)
+
+    return X
 
 def disp_regression(X):
     shape = X.shape
@@ -184,7 +201,9 @@ def disp_regression(X):
     x = tf.tile(x, (shape[0], shape[1], shape[2], 1))
     out = multiply([X,x])
     out = tf.squeeze(out)
-    out = tf.math.reduce_sum(out, axis=-1)
+    out =  	The output stream, logging level, or file to print to. Defaults to sys.stderr, but sys.stdout, tf.compat.v1.logging.info, tf.compat.v1.logging.warning, tf.compat.v1.logging.error, absl.logging.info, absl.logging.warning and absl.logging.error are also supported. To print to a file, pass a string started with "file://" followed by the file path, e.g., "file:///tmp/foo.out".
+summarize 	The first and last summarize elements within each dimension are recursively printed per Tensor. If None, then the first 3 and last 3 elements of each dimension are printed for each tensor. If set to -1, it will print all elements of every tensor.
+septf.math.reduce_sum(out, axis=-1)
     return out
 
 def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
@@ -193,14 +212,15 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     param output_shape: size of the 2D depth map
     '''
     # initial input mapping
-    inputs = keras.Input(shape=input_shape, name='model_input', batch_size=batch_size)
+    inputs = layers.Input(shape=input_shape, name='model_input', batch_size=batch_size)
     X = inputs
+    X = Tester()(X)
 
     # monocular depth cues
     center = angres//2 
     center_view = X[:,center,:,:,center]
     center_view = tf.expand_dims(center_view, axis=-1)
-    f_maps = feature_extractor(center_view, monocular=True)
+    f_maps = monocular_extractor(center_view)
     depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
                         n_filters=162, batch_size=batch_size)(X, f_maps)
     depth_cues = layers.ReLU()(depth_cues)
