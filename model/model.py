@@ -22,9 +22,8 @@ class DepthCueExtractor(tf.keras.Model):
         self.w = w
         self.n_filters = n_filters
         self.batch_size = batch_size
-        self.h_mask = tf.Variable(tf.zeros(shape=(batch_size, n_filters, h)))
-        #self.s_weight = tf.Variable(tf.ones(shape=(batch_size, n_filters)))
 
+    @tf.function
     def relative_size(self, f_maps):
         '''
         extracts relative size through center view features
@@ -41,8 +40,9 @@ class DepthCueExtractor(tf.keras.Model):
             masks = masks.write(b, mask_op.stack())
         masks = masks.stack()
         masks = tf.ensure_shape(masks, shape=[self.batch_size, self.n_filters])
-        self.s_weight + masks
+        self.s_weight = self.s_weight + masks
 
+    @tf.function
     def height(self, f_maps):
         '''
         extracts height in plane from the feature map
@@ -52,7 +52,6 @@ class DepthCueExtractor(tf.keras.Model):
             mask_op = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
                 curr_map = f_maps[b, :, :, i]
-                #tf.print(curr_map, output_stream = tf.compat.v1.logging.info, summarize=-1)
                 curr_map = tf.squeeze(curr_map)
                 height_vectors = tf.math.reduce_euclidean_norm(curr_map, axis=0) 
                 mask_op = mask_op.write(i, height_vectors)
@@ -61,10 +60,10 @@ class DepthCueExtractor(tf.keras.Model):
         masks = tf.ensure_shape(masks, 
                                 shape=[self.batch_size, 
                                     self.n_filters, self.h])
-        self.h_mask + masks
-
-    def call(self, lfi, f_maps):
-        self.height(f_maps)
+        return masks 
+    
+    def call(self, lfi, f_maps, h_mask):
+        h_mask = h_mask + self.height(f_maps)
         #self.relative_size(f_maps)  
         results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
         #tf.print(lfi, output_stream = tf.compat.v1.logging.info, summarize=-1)
@@ -72,7 +71,8 @@ class DepthCueExtractor(tf.keras.Model):
             result = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
             for i in range(self.n_filters):
                 #s_feat = lfi[b, :, :, :, :] + self.s_weight[b, i]
-                h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) + self.h_mask[b, i, :]
+                #tf.print(self.h_mask, output_stream = tf.compat.v1.logging.info, summarize=-1)
+                h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) * h_mask[b, i, :]
                 h_feat = tf.transpose(h_feat, perm=[0,3,2,1])
                 result = result.write(i, h_feat)
                 #combined_feat = s_feat * h_feat
@@ -105,6 +105,8 @@ class Tester(tf.keras.Model):
 def aggregate(cost_volume):
     # aggregate cost volume
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(cost_volume)
+    X = layers.LeakyReLU()(X)
+    X = layers.LayerNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
@@ -171,8 +173,6 @@ def feature_extractor(X, monocular=False):
     X = layers.LayerNormalization()(X)
 
     out = tf.math.reduce_mean(X, axis=1)
-    out = layers.LeakyReLU()(out)
-    out = layers.LayerNormalization()(out)
 
     return out
 
@@ -222,10 +222,10 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     center_view = X[:,center,:,:,center]
     center_view = tf.expand_dims(center_view, axis=-1)
     f_maps = monocular_extractor(center_view)
+    h_mask = tf.Variable(tf.zeros(shape=(batch_size, 162, 32)))
+    #s_weight = tf.Variable(tf.zeros(shape=(batch_size, 162)))
     depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
-                        n_filters=162, batch_size=batch_size)(X, f_maps)
-    depth_cues = layers.LeakyReLU()(depth_cues)
-    depth_cues = layers.LayerNormalization()(depth_cues)
+              n_filters=162, batch_size=batch_size)(lfi=X, f_maps=f_maps, h_mask=h_mask)
 
     # multi-view feature extraction + cost volume creation
     X = feature_extractor(X)
@@ -234,7 +234,8 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     X = combine(X, depth_cues)
     #X = layers.Activation('log_softmax')(X)
 
-    predictions = disp_regression(X)
+    #predictions = disp_regression(X)
+    predictions = tf.squeeze(layers.Dense(1)(X))
 
     model = models.Model(inputs=inputs, outputs=predictions) 
  

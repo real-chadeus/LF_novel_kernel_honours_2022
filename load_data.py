@@ -193,8 +193,8 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=100, num_rot=100, num_scale=100, num_contrast=0,
-                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=100, num_rot=100, num_scale=0, num_contrast=0,
+                                                   num_noise=100, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
                             if len(imgs) < batch_size:
                                 imgs.append(im)
                                 maps.append(m) 

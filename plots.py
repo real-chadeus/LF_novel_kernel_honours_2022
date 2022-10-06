@@ -68,8 +68,8 @@ def plot_badpix(model_name='model1'):
     plt.show()
 
 
-plot_mse(model_name='test4')
-plot_badpix(model_name='test4')
+plot_mse(model_name='test5')
+plot_badpix(model_name='test5')
 
 
 

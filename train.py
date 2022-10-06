@@ -47,7 +47,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
 
-    lr = 0.00001
+    lr = 0.001
     #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
     #    initial_learning_rate=0.00025,
     #    decay_steps=2500,
@@ -113,13 +113,12 @@ if __name__ == "__main__":
     model = net.build_model(input_shape=input_shape, summary=True, 
                                     n_sais=81, batch_size=batch_size)
     # validation dataset
-    hci_val = functools.partial(load_data.dataset_gen, 
-                                load_sintel=False, load_hci=True, crop=True, window_size=32,
-                                augment_sintel=False, augment_hci=False,
-                                batch_size=batch_size, validation=True, train=False)
-    hci_val = tf.data.Dataset.from_generator(hci_val,
-          output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.int8),
-                            tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
+    gen = load_data.dataset_gen
+    val = tf.data.Dataset.from_generator(gen, 
+                     args=(False, False, True, 32, False, 
+                           True, 9, batch_size, 1000, False, True, False),
+                            output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
+                                              tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     #sintel_val = load_data.load_sintel(img_shape=input_shape, do_augment=False,
     #                                    use_tf_ds=False, use_disp=True)
@@ -127,7 +126,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=hci_val, epochs=100, model_name='test5', 
+            val_set=val, epochs=10, model_name='test5', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()

@@ -15,13 +15,12 @@ import functools
 load_path = 'checkpoints/'
 model_name = 'test/'
 input_shape = (9,32,32,9)
-hci = functools.partial(load_data.dataset_gen, 
-                            load_sintel=False, load_hci=True, crop=False, window_size=32,
-                            augment_sintel=False, augment_hci=False,
-                            batch_size=1)
-hci = tf.data.Dataset.from_generator(hci,
-      output_signature=(tf.TensorSpec(shape=(1,) + input_shape, dtype=tf.int8),
-                        tf.TensorSpec(shape=(1,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
+gen = load_data.dataset_gen
+hci = tf.data.Dataset.from_generator(gen, 
+                 args=(False, False, True, 32, False, 
+                       True, 9, batch_size, 1000, False, True, False),
+                        output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
+                                          tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 model = net.build_model(input_shape=input_shape, summary=True, 
                                 n_sais=81, batch_size=1)
 custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
