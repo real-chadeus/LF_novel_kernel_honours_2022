@@ -15,6 +15,7 @@ import functools
 load_path = 'checkpoints/'
 model_name = 'test/'
 input_shape = (9,32,32,9)
+batch_size=1
 gen = load_data.dataset_gen
 hci = tf.data.Dataset.from_generator(gen, 
                  args=(False, False, True, 32, False, 
@@ -25,7 +26,7 @@ model = net.build_model(input_shape=input_shape, summary=True,
                                 n_sais=81, batch_size=1)
 custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
 model = keras.models.load_model(load_path + model_name, custom_objects={'BadPix': BadPix})
-metrics = model.evaluate(hci, batch_size=1, workers=4)
+metrics = model.evaluate(hci,  workers=8)
 print(metrics)
 
 

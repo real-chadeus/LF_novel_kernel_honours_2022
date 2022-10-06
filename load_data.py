@@ -81,7 +81,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
 
     # random gamma
     for i in range(num_gamma):
-        factor = np.random.uniform(0,3)
+        factor = np.random.uniform(0.8, 1.2)
         new_img = tf.image.adjust_gamma(img, gamma=factor).numpy()
         new_disp = disp
         yield (new_img, new_disp)
@@ -184,7 +184,6 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     img = img.reshape((9,512,9,512,3), order='F')
                     img = np.moveaxis(img, 2, 3)
                     img = img/255
-                    lfi = 0.2126 * img[:,:,:,:,0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
 
                     d_map = np.load(r_dir + '/stacked/center_disp.npy')
                     d_map = np.swapaxes(d_map, 0, 1)
@@ -193,8 +192,9 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=100, num_rot=100, num_scale=0, num_contrast=0,
-                                                   num_noise=100, num_sat=0, num_bright=0, num_gamma=0, num_hue=0):
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=150, num_contrast=0,
+                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=150, num_hue=0):
+                            img = 0.2126 * im[:,:,:,:,0] + 0.7152 * im[:,:,:,:,1] + 0.0722 * im[:,:,:,:,2]
                             if len(imgs) < batch_size:
                                 imgs.append(im)
                                 maps.append(m) 
@@ -204,6 +204,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                 maps = []
 
                     if len(imgs) < batch_size:
+                        crop_img = 0.2126 * crop_img[:,:,:,:,0] + 0.7152 * crop_img[:,:,:,:,1] + 0.0722 * crop_img[:,:,:,:,2]
                         imgs.append(crop_img)
                         maps.append(crop_map) 
                     if len(imgs) == batch_size:
@@ -245,18 +246,15 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     img = np.moveaxis(img, 2, 3)
                     img = img/255
                     lfi = 0.2126 * img[:,:,:,:,0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
-
+                    
                     for x in range(16):
                         for y in range(16): 
                             crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
-                            crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
                             if len(imgs) < batch_size:
                                 imgs.append(crop_img)
-                                maps.append(crop_map) 
                             if len(imgs) == batch_size:
-                                yield (imgs, maps)
+                                yield imgs
                                 imgs = []
-                                maps = []
 
 
 

@@ -62,8 +62,8 @@ class DepthCueExtractor(tf.keras.Model):
                                     self.n_filters, self.h])
         return masks 
     
-    def call(self, lfi, f_maps, h_mask):
-        h_mask = h_mask + self.height(f_maps)
+    def call(self, lfi, f_maps):
+        h_mask = self.height(f_maps)
         #self.relative_size(f_maps)  
         results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
         #tf.print(lfi, output_stream = tf.compat.v1.logging.info, summarize=-1)
@@ -86,7 +86,7 @@ class DepthCueExtractor(tf.keras.Model):
                                         ] + lfi.shape[1:])
         results = tf.transpose(results, perm=[0,2,3,4,5,1])
         # aggregate over angular dimensions
-        results = tf.math.reduce_sum(results, axis=[1,4])
+        results = tf.math.reduce_mean(results, axis=[1,4])
         #tf.print(results, output_stream = tf.compat.v1.logging.info, summarize=-1)
         return results
 
@@ -196,17 +196,6 @@ def monocular_extractor(X):
 
     return X
 
-def disp_regression(X):
-    shape = X.shape
-    disparity_values = np.linspace(-4, 4, 81)
-    x = tf.constant(disparity_values, shape=[81])
-    x = tf.expand_dims(tf.expand_dims(tf.expand_dims(x, 0), 0), 0)
-    x = tf.tile(x, (shape[0], shape[1], shape[2], 1))
-    out = multiply([X,x])
-    out = tf.squeeze(out)
-    out = tf.math.reduce_sum(out, axis=-1)
-    return out
-
 def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     '''
     build the model
@@ -222,10 +211,9 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     center_view = X[:,center,:,:,center]
     center_view = tf.expand_dims(center_view, axis=-1)
     f_maps = monocular_extractor(center_view)
-    h_mask = tf.Variable(tf.zeros(shape=(batch_size, 162, 32)))
     #s_weight = tf.Variable(tf.zeros(shape=(batch_size, 162)))
     depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
-              n_filters=162, batch_size=batch_size)(lfi=X, f_maps=f_maps, h_mask=h_mask)
+              n_filters=162, batch_size=batch_size)(lfi=X, f_maps=f_maps)
 
     # multi-view feature extraction + cost volume creation
     X = feature_extractor(X)
@@ -235,7 +223,7 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     #X = layers.Activation('log_softmax')(X)
 
     #predictions = disp_regression(X)
-    predictions = tf.squeeze(layers.Dense(1)(X))
+    predictions = tf.squeeze(layers.Dense(1)(X), axis=-1)
 
     model = models.Model(inputs=inputs, outputs=predictions) 
  
