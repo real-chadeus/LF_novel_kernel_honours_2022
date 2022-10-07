@@ -7,6 +7,7 @@ import tensorflow_addons as tfa
 import load_data
 import preprocessing.hci_dataset_tools.file_io as hci_io
 import model.model as net
+import model.model2 as net2
 import tensorflow.keras.losses as losses
 from keras import backend as K
 import numpy as np
@@ -48,15 +49,10 @@ def train(model, input_shape=(), dataset=(), val_set=[],
         os.makedirs(save_path + model_name)
 
     lr = 0.001
-    #lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-    #    initial_learning_rate=0.00025,
-    #    decay_steps=2500,
-    #    decay_rate=0.9)
-
-    loss = losses.MeanAbsoluteError()
+    #loss = losses.MeanAbsoluteError()
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
     # model compile
-    model.compile(optimizer=optimizer, loss=loss, 
+    model.compile(optimizer=optimizer, loss='mae', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
                             BadPix(name='BadPix7', threshold=0.07),
                             BadPix(name='BadPix3', threshold=0.03),
@@ -78,16 +74,7 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 
     # train model
     val = val_set 
-    #training = load_data.dataset_gen(augment_sintel=augment_sintel, augment_hci=augment_hci, crop=True, window_size=32,
-    #            load_sintel=load_sintel, load_hci=load_hci, angres=9, batch_size=batch_size, batches=1000,
-    #            train=True, validation=False, test=False)
-
     gen = load_data.dataset_gen
-
-    #gen = functools.partial(load_data.dataset_gen, 
-    #                        load_sintel=load_sintel, load_hci=load_hci, crop=crop, window_size=window_size,
-    #                        augment_sintel=augment_sintel, augment_hci=augment_hci,
-    #                        batch_size=batch_size, train=True)
 
     training = tf.data.Dataset.from_generator(gen, 
                      args=(augment_sintel, augment_hci, True, 32, load_sintel, 
@@ -109,9 +96,10 @@ if __name__ == "__main__":
     # initial parameters 
     batch_size = 1
     input_shape = (9,32,32,9)
+    val_shape = (9, 512, 512, 9)
 
-    model = net.build_model(input_shape=input_shape, summary=True, 
-                                    n_sais=81, batch_size=batch_size)
+    model = net.build_model(input_shape=input_shape, batch_size=1)
+    #model_predict = net2.build_model(input_shape=val_shape, view_n=9)
     # validation dataset
     gen = load_data.dataset_gen
     val = tf.data.Dataset.from_generator(gen, 
@@ -126,7 +114,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=val, epochs=10, model_name='test5', 
+            val_set=val, epochs=30, model_name='test5', 
             use_gen=True, load_model=False, load_sintel=False,
             load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()

@@ -15,12 +15,16 @@ data_path = '../../../datasets'
 #center1 = img[4,:,:,4]
 #plt.imshow(center1)
 #plt.show()
-d_map = np.load(data_path + '/hci_dataset/additional/vinyl/stacked/center_disp.npy')
+d_map = np.load(data_path + '/hci_dataset/additional/antinous/stacked/center_disp.npy')
 d_map = np.swapaxes(d_map, 0, 1)
+min_val = np.amin(d_map)
+print('min value', min_val)
 #plt.imshow(d_map, interpolation='nearest')
+
 #plt.show()
 
 preds = np.load('../predictions/pred_1.npy')
+print(preds)
 plt.imshow(preds, interpolation='nearest')
 plt.show()
 

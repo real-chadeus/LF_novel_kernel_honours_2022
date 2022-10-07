@@ -37,6 +37,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
 
         new_img = np.flip(img, axis=flip_axis)
         new_disp = np.flip(disp, axis=d_axis)
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
 
         yield (new_img, new_disp)
     
@@ -47,6 +48,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
             
         new_img = np.rot90(img, k=n_rot, axes=(1,2))
         new_disp = np.rot90(disp, k=n_rot, axes=(0,1))
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         imgs.append(new_img)
         imgs.append(new_disp)
         yield (new_img, new_disp)
@@ -55,6 +57,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     for i in range(num_noise):
         noise = np.random.uniform(0, 1, size=img.shape) 
         new_img = img * noise
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         new_disp = disp * noise[4, :, :, 4]
         yield (new_img, new_disp)
 
@@ -62,6 +65,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     for i in range(num_contrast):
         factor = np.random.uniform(-3,3)
         new_img = tf.image.adjust_contrast(img, contrast_factor=factor).numpy()
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         new_disp = disp
         yield (new_img, new_disp)
 
@@ -69,6 +73,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     for i in range(num_sat):
         factor = np.random.uniform(-3,3)
         new_img = tf.image.adjust_saturation(img, saturation_factor=factor).numpy() 
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         new_disp = disp
         yield (new_img, new_disp)
 
@@ -76,6 +81,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     for i in range(num_bright):
         factor = np.random.uniform(-1,1)
         new_img = tf.image.adjust_brightness(img, delta=factor).numpy()
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         new_disp = disp
         yield (new_img, new_disp)
 
@@ -84,12 +90,14 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
         factor = np.random.uniform(0.8, 1.2)
         new_img = tf.image.adjust_gamma(img, gamma=factor).numpy()
         new_disp = disp
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         yield (new_img, new_disp)
 
     # random hue
     for i in range(num_hue):
         factor = np.random.uniform(-1,1)
         new_img = tf.image.adjust_hue(img, delta=factor).numpy()
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         new_disp = disp
         yield (new_img, new_disp)
 
@@ -98,6 +106,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
         factor = np.random.uniform(0.25, 1)
         new_img = img * factor
         new_disp = disp * factor
+        new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
         yield (new_img, new_disp)
     
 
@@ -112,7 +121,7 @@ def random_crop(img, disp):
 
 def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32,
                 load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000,
-                train=True, validation=False, test=False):
+                train=True, validation=False, test=False, multi_input=False):
     '''
     yields images and disparity maps from both datasets as a generator (reduces memory usage).
     Loads in order of Sintel -> HCI
@@ -188,13 +197,12 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     d_map = np.load(r_dir + '/stacked/center_disp.npy')
                     d_map = np.swapaxes(d_map, 0, 1)
 
-                    crop_img, crop_map = random_crop(lfi, d_map) 
+                    crop_img, crop_map = random_crop(img, d_map) 
 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=150, num_contrast=0,
-                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=150, num_hue=0):
-                            img = 0.2126 * im[:,:,:,:,0] + 0.7152 * im[:,:,:,:,1] + 0.0722 * im[:,:,:,:,2]
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=150, num_contrast=150,
+                                                   num_noise=0, num_sat=150, num_bright=0, num_gamma=150, num_hue=0):
                             if len(imgs) < batch_size:
                                 imgs.append(im)
                                 maps.append(m) 
@@ -233,7 +241,10 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                 imgs.append(crop_img)
                                 maps.append(crop_map) 
                             if len(imgs) == batch_size:
-                                yield (imgs, maps)
+                                if test:
+                                    yield imgs
+                                else:
+                                    yield (imgs, maps)
                                 imgs = []
                                 maps = []
 

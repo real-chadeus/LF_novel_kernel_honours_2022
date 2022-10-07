@@ -16,7 +16,7 @@ batch_size=1
 gen = load_data.dataset_gen
 hci = tf.data.Dataset.from_generator(gen, 
                  args=(False, False, True, 32, False, 
-                       True, 9, batch_size, 1000, False, True, True),
+                       True, 9, batch_size, 1000, False, False, True),
                         output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32)))
 
 custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
@@ -24,11 +24,11 @@ model = keras.models.load_model(load_path + 'test5', custom_objects={'BadPix': B
 predictions = model.predict(hci, workers=8)
 
 for i in range(predictions.shape[0]):
-    for k in range(16):
+    for k in range(4):
         stacked = [[] for i in range(16)]
-        for x in range(16):
-            for y in range(16):
-                stacked[x].append(predictions[256 * k + x * y])
+        for y in range(16):
+            for x in range(16):
+                stacked[y].append(predictions[(256 * k) + (y*16 + x)])
                 
 
         stacked = np.block(stacked)
