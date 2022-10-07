@@ -106,19 +106,19 @@ def aggregate(cost_volume):
     # aggregate cost volume
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(cost_volume)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=512, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=81, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=12, kernel_size=(3,3), padding='same')(X)
 
@@ -132,19 +132,19 @@ def combine(multi_view, depth_cues):
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=81, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=24, kernel_size=(3,3), padding='same')(X)
 
@@ -155,19 +155,19 @@ def feature_extractor(X, monocular=False):
     # lfi feature extraction and cost volume creation 
     X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv3D(filters=162, kernel_size=(1,1,1), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     out = tf.math.reduce_mean(X, axis=1)
 
@@ -177,19 +177,19 @@ def monocular_extractor(X):
     # feature extraction for center view
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=81, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     X = layers.Conv2D(filters=12, kernel_size=(3,3), padding='same')(X)
     X = layers.LeakyReLU()(X)
-    X = layers.LayerNormalization()(X)
+    X = layers.BatchNormalization()(X)
 
     return X
 

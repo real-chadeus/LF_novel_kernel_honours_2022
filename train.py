@@ -94,11 +94,11 @@ def train(model, input_shape=(), dataset=(), val_set=[],
 if __name__ == "__main__":
    
     # initial parameters 
-    batch_size = 1
+    batch_size = 32
     input_shape = (9,32,32,9)
     val_shape = (9, 512, 512, 9)
 
-    model = net.build_model(input_shape=input_shape, batch_size=1)
+    model = net.build_model(input_shape=input_shape, batch_size=batch_size)
     #model_predict = net2.build_model(input_shape=val_shape, view_n=9)
     # validation dataset
     gen = load_data.dataset_gen

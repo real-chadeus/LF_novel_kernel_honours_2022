@@ -204,7 +204,15 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                         for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=150, num_contrast=150,
                                                    num_noise=0, num_sat=150, num_bright=0, num_gamma=150, num_hue=0):
                             if len(imgs) < batch_size:
-                                imgs.append(im)
+                                if multi_input:
+                                    img_list = []
+                                    map_list = []
+                                    for i in range(angres):
+                                        for k in range(angres):
+                                            img_list.append(im[i, :, :, k])
+                                    imgs.append(img_list)
+                                else:
+                                    imgs.append(crop_img)
                                 maps.append(m) 
                             if len(imgs) == batch_size:
                                 yield (imgs, maps)
@@ -213,12 +221,21 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
                     if len(imgs) < batch_size:
                         crop_img = 0.2126 * crop_img[:,:,:,:,0] + 0.7152 * crop_img[:,:,:,:,1] + 0.0722 * crop_img[:,:,:,:,2]
-                        imgs.append(crop_img)
+                        if multi_input:
+                            img_list = []
+                            map_list = []
+                            for i in range(angres):
+                                for k in range(angres):
+                                    img_list.append(crop_img[i, :, :, k])
+                            imgs.append(img_list)
+                        else:
+                            imgs.append(crop_img)
                         maps.append(crop_map) 
                     if len(imgs) == batch_size:
                         yield (imgs, maps)
                         imgs = []
                         maps = []
+                        
 
                 if validation:
                     if 'stratified' not in r_dir and 'training' not in r_dir:
