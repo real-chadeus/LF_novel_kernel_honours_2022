@@ -21,7 +21,6 @@ import functools
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
 print('tensorflow version: ', tf.__version__)
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom=True)
 sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1']
 #tf.config.set_logical_device_configuration(
@@ -33,6 +32,7 @@ class MemoryCleaner(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         gc.collect()
         tf.keras.backend.clear_session()
+
 
 def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', 
@@ -82,7 +82,13 @@ def train(model, input_shape=(), dataset=(), val_set=[],
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
-    model.fit(x=training, epochs=epochs, validation_data=val,
+    #model.fit(x=training, epochs=epochs, validation_data=val,
+    #            validation_batch_size=batch_size, 
+    #            callbacks=[TqdmCallback(verbose=2), 
+    #                        checkpoint, logger, memory_cleaner],
+    #                        workers=8)
+
+    model.fit(x=load_data.multi_input(training), epochs=epochs, validation_data=load_data.multi_input(val),
                 validation_batch_size=batch_size, 
                 callbacks=[TqdmCallback(verbose=2), 
                             checkpoint, logger, memory_cleaner],
@@ -98,13 +104,14 @@ if __name__ == "__main__":
     input_shape = (9,32,32,9)
     val_shape = (9, 512, 512, 9)
 
-    model = net.build_model(input_shape=input_shape, batch_size=batch_size)
-    #model_predict = net2.build_model(input_shape=val_shape, view_n=9)
+    #model = net.build_model(input_shape=input_shape, batch_size=batch_size)
+    
+    model = net2.build_model(input_shape=input_shape, view_n=9)
     # validation dataset
     gen = load_data.dataset_gen
     val = tf.data.Dataset.from_generator(gen, 
                      args=(False, False, True, 32, False, 
-                           True, 9, batch_size, 1000, False, True, False),
+                           True, 9, batch_size, 1000, False, True, False, False),
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 

@@ -10,6 +10,7 @@ import sys, glob, os, random
 import pandas as pd
 import scipy.io as sio
 import preprocessing.hci_dataset_tools.file_io as hci_io
+import threading
 
 data_path = '../../datasets'
 
@@ -118,7 +119,6 @@ def random_crop(img, disp):
     crop_map = disp[32*x:32*(x+1),32*y:32*(y+1)]
     return (crop_img, crop_map)
 
-
 def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32,
                 load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000,
                 train=True, validation=False, test=False, multi_input=False):
@@ -204,15 +204,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                         for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=150, num_contrast=150,
                                                    num_noise=0, num_sat=150, num_bright=0, num_gamma=150, num_hue=0):
                             if len(imgs) < batch_size:
-                                if multi_input:
-                                    img_list = []
-                                    map_list = []
-                                    for i in range(angres):
-                                        for k in range(angres):
-                                            img_list.append(im[i, :, :, k])
-                                    imgs.append(img_list)
-                                else:
-                                    imgs.append(crop_img)
+                                imgs.append(im)
                                 maps.append(m) 
                             if len(imgs) == batch_size:
                                 yield (imgs, maps)
@@ -221,15 +213,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
                     if len(imgs) < batch_size:
                         crop_img = 0.2126 * crop_img[:,:,:,:,0] + 0.7152 * crop_img[:,:,:,:,1] + 0.0722 * crop_img[:,:,:,:,2]
-                        if multi_input:
-                            img_list = []
-                            map_list = []
-                            for i in range(angres):
-                                for k in range(angres):
-                                    img_list.append(crop_img[i, :, :, k])
-                            imgs.append(img_list)
-                        else:
-                            imgs.append(crop_img)
+                        imgs.append(crop_img)
                         maps.append(crop_map) 
                     if len(imgs) == batch_size:
                         yield (imgs, maps)
@@ -283,7 +267,39 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                             if len(imgs) == batch_size:
                                 yield imgs
                                 imgs = []
+class ThreadsafeIter:
+    """
+    uses mutex to serialize
+    """
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
 
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self.lock:
+            return self.it.__next__()
+
+def threadsafe(f):
+    """
+    decorator that takes a generator function and makes it thread-safe.
+    """
+    def g(*a, **kw):
+        return ThreadsafeIter(f(*a, **kw))
+    return g
+
+@threadsafe
+def multi_input(dataset, angres=9):
+    for data in dataset:
+        img_set = data[0]
+        target = data[1]
+        sai_list = []
+        for i in range(angres):
+            for k in range(angres):
+                sai_list.append(img_set[:,i,:,:,k])
+        yield sai_list, target
 
 
 
