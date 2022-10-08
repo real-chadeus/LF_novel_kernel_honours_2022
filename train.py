@@ -33,12 +33,20 @@ class MemoryCleaner(tf.keras.callbacks.Callback):
         gc.collect()
         tf.keras.backend.clear_session()
 
+#class WeightSetter(tf.keras.callbacks.Callback):
+#    def __init__(self, train_model, val_model):
+#        self.train_model = train_model
+#        self.val_model = val_model
+#        
+#    def on_epoch_nd(self, epoch, logs=None):
+        
+
 
 def train(model, input_shape=(), dataset=(), val_set=[], 
             epochs=10, batch_size=1, model_name='model1', 
             use_gen=True, load_model=False, load_sintel=True,
             load_hci=True, augment_sintel=True, augment_hci=True,
-            crop=True, window_size=32):
+            crop=True, window_size=32, val_model=None):
     '''
     train function
     arg dataset: 2-tuple of data, first element = train data, second element = validation data.
@@ -88,25 +96,34 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     #                        checkpoint, logger, memory_cleaner],
     #                        workers=8)
 
-    model.fit(x=load_data.multi_input(training), epochs=epochs, validation_data=load_data.multi_input(val),
-                validation_batch_size=batch_size, 
-                callbacks=[TqdmCallback(verbose=2), 
-                            checkpoint, logger, memory_cleaner],
-                            workers=8)
+    for i in range(epochs)
+        model.fit(x=load_data.multi_input(training), epochs=1, validation_data=load_data.multi_input(val),
+                    validation_batch_size=batch_size, steps_per_epoch=10000, validation_steps=2048, 
+                    callbacks=[TqdmCallback(verbose=2), 
+                                logger, memory_cleaner],
+                                workers=8)
+        
+        weights = model.get_weights()
+        val_model.set_weights(weights)
+         
 
-    model.save(save_path + model_name)
+        model.save(save_path + model_name)
+        val_model.save(save_path + model_name + 'val/')
 
 
 if __name__ == "__main__":
    
     # initial parameters 
-    batch_size = 32
+    batch_size = 1
     input_shape = (9,32,32,9)
     val_shape = (9, 512, 512, 9)
 
     #model = net.build_model(input_shape=input_shape, batch_size=batch_size)
+    #pred_model = net.build_model(input_shape=val_shape, batch_size=batch_size)
     
-    model = net2.build_model(input_shape=input_shape, view_n=9)
+    model = net2.build_model(input_shape=input_shape, angres=9)
+    # validation/prediction model with full 512x512 resolution
+    val_model = net2.build_model(input_shape=input_shap, angres=9)
     # validation dataset
     gen = load_data.dataset_gen
     val = tf.data.Dataset.from_generator(gen, 
@@ -115,15 +132,13 @@ if __name__ == "__main__":
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
-    #sintel_val = load_data.load_sintel(img_shape=input_shape, do_augment=False,
-    #                                    use_tf_ds=False, use_disp=True)
-    
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, batch_size=batch_size, 
             val_set=val, epochs=30, model_name='test5', 
             use_gen=True, load_model=False, load_sintel=False,
-            load_hci=True, augment_sintel=True, augment_hci=True)
+            load_hci=True, augment_sintel=True, augment_hci=True,
+            val_model=val_model)
     end = time.time()
     print('time to train: ', end-start)
 

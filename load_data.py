@@ -292,14 +292,15 @@ def threadsafe(f):
 
 @threadsafe
 def multi_input(dataset, angres=9):
-    for data in dataset:
-        img_set = data[0]
-        target = data[1]
-        sai_list = []
-        for i in range(angres):
-            for k in range(angres):
-                sai_list.append(img_set[:,i,:,:,k])
-        yield sai_list, target
+    while 1:
+        for data in dataset:
+            img_set = data[0]
+            target = data[1]
+            sai_list = []
+            for i in range(angres):
+                for k in range(angres):
+                    sai_list.append(img_set[:,i,:,:,k])
+            yield sai_list, target
 
 
 
