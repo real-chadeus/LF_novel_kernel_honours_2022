@@ -16,12 +16,9 @@ class DepthCueExtractor(tf.keras.Model):
     '''
     extracts monocular depth cue information
     '''
-    def __init__(self, h, w, n_filters, batch_size):
+    def __init__(self,n_filters):
         super(DepthCueExtractor, self).__init__(name='depth_cue_extractor')
-        self.h = h
-        self.w = w
         self.n_filters = n_filters
-        self.batch_size = batch_size
 
     @tf.function
     def relative_size(self, f_maps):
@@ -29,66 +26,22 @@ class DepthCueExtractor(tf.keras.Model):
         extracts relative size through center view features
         gets the reduce sum of the pixel values of the current feature map
         '''
-        masks = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
-        for b in range(self.batch_size):
-            mask_op = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
-            for i in range(self.n_filters):
-                curr_map = f_maps[b, :, :, i]
-                curr_map = tf.squeeze(curr_map)
-                size_weight = tf.math.reduce_euclidean_norm(curr_map)  
-                mask_op = mask_op.write(i, size_weight)
-            masks = masks.write(b, mask_op.stack())
-        masks = masks.stack()
-        masks = tf.ensure_shape(masks, shape=[self.batch_size, self.n_filters])
-        self.s_weight = self.s_weight + masks
+        size_weight = tf.math.reduce_sum(f_maps)  
+        return size_weight
 
     @tf.function
     def height(self, f_maps):
         '''
         extracts height in plane from the feature map
         '''
-        masks = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
-        for b in range(self.batch_size):
-            mask_op = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
-            for i in range(self.n_filters):
-                curr_map = f_maps[b, :, :, i]
-                curr_map = tf.squeeze(curr_map)
-                height_vectors = tf.math.reduce_sum(curr_map, axis=0) 
-                mask_op = mask_op.write(i, height_vectors)
-            masks = masks.write(b, mask_op.stack())
-        masks = masks.stack()
-        masks = tf.ensure_shape(masks, 
-                                shape=[self.batch_size, 
-                                    self.n_filters, self.h])
-        return masks 
+        height_vectors = tf.math.reduce_sum(f_maps, axis=1) 
+        return height_vectors 
     
-    def call(self, lfi, f_maps):
+    def call(self, f_maps):
         h_mask = self.height(f_maps)
-        #self.relative_size(f_maps)  
-        results = tf.TensorArray(tf.float32, size=self.batch_size, dynamic_size=True)
-        #tf.print(lfi, output_stream = tf.compat.v1.logging.info, summarize=-1)
-        for b in range(self.batch_size):
-            result = tf.TensorArray(tf.float32, size=self.n_filters, dynamic_size=True)
-            for i in range(self.n_filters):
-                #s_feat = lfi[b, :, :, :, :] + self.s_weight[b, i]
-                #tf.print(self.h_mask, output_stream = tf.compat.v1.logging.info, summarize=-1)
-                h_feat = tf.transpose(lfi[b, :, :, :, :], perm=[0,3,2,1]) * h_mask[b, i, :]
-                h_feat = tf.transpose(h_feat, perm=[0,3,2,1])
-                result = result.write(i, h_feat)
-                #combined_feat = s_feat * h_feat
-                #result = result.write(i, combined_feat)
-            results = results.write(b, result.stack())
-        
-        results = results.stack()
-        results = tf.ensure_shape(results, 
-                                 shape=[self.batch_size,
-                                        self.n_filters,
-                                        ] + lfi.shape[1:])
-        results = tf.transpose(results, perm=[0,2,3,4,5,1])
-        # aggregate over angular dimensions
-        results = tf.math.reduce_mean(results, axis=[1,4])
-        #tf.print(results, output_stream = tf.compat.v1.logging.info, summarize=-1)
-        return results
+        s_mask = self.relative_size(f_maps)
+        result = h_mask * s_mask
+        return result
 
 
 class Tester(tf.keras.Model):
@@ -127,7 +80,7 @@ def aggregate(cost_volume):
 
 def combine(multi_view, depth_cues):
     # combine monocular depth cues with multi-view features 
-    X = multi_view + depth_cues 
+    X = multi_view * depth_cues 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
 
     X = layers.Conv2D(filters=162, kernel_size=(3,3), padding='same')(X)
@@ -218,8 +171,7 @@ def build_model(input_shape, summary=True, n_sais=81, angres=9, batch_size=16):
     center_view = tf.expand_dims(center_view, axis=-1)
     f_maps = monocular_extractor(center_view)
     #s_weight = tf.Variable(tf.zeros(shape=(batch_size, 162)))
-    depth_cues = DepthCueExtractor(h=X.shape[2], w=X.shape[3], 
-              n_filters=12, batch_size=batch_size)(lfi=X, f_maps=f_maps)
+    depth_cues = DepthCueExtractor(n_filters=12)(f_maps=f_maps)
 
     # multi-view feature extraction + cost volume creation
     X = feature_extractor(X)

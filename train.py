@@ -33,25 +33,13 @@ class MemoryCleaner(tf.keras.callbacks.Callback):
         gc.collect()
         tf.keras.backend.clear_session()
 
-#class WeightSetter(tf.keras.callbacks.Callback):
-#    def __init__(self, train_model, val_model):
-#        self.train_model = train_model
-#        self.val_model = val_model
-#        
-#    def on_epoch_nd(self, epoch, logs=None):
-        
-
-
-def train(model, input_shape=(), dataset=(), val_set=[], 
+def train(model, input_shape=(), val_shape=(), dataset=(), 
             epochs=10, batch_size=1, model_name='model1', 
             use_gen=True, load_model=False, load_sintel=True,
             load_hci=True, augment_sintel=True, augment_hci=True,
             crop=True, window_size=32, val_model=None):
     '''
     train function
-    arg dataset: 2-tuple of data, first element = train data, second element = validation data.
-                 Each is a 2-tuple of (data, labels) 
-    arg use_gen: use generators to reduce memory usage
     '''
     if not os.path.exists(save_path + model_name):
         os.makedirs(save_path + model_name)
@@ -62,82 +50,90 @@ def train(model, input_shape=(), dataset=(), val_set=[],
     # model compile
     model.compile(optimizer=optimizer, loss='mae', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
-                            BadPix(name='BadPix7', threshold=0.07),
-                            BadPix(name='BadPix3', threshold=0.03),
-                            BadPix(name='BadPix1', threshold=0.01)
+                            BadPix(name='BadPix7', threshold=0.07)
                             ])
 
-    # checkpoint
+    val_model.compile(optimizer=optimizer, loss='mae', 
+                   metrics=[tf.keras.metrics.MeanSquaredError(),
+                            BadPix(name='BadPix7', threshold=0.07)
+                            ])
+
+    # callbacks
     checkpoint = ModelCheckpoint(filepath = 'checkpoints/' + model_name, monitor='val_mean_squared_error',
             save_best_only=True, save_weights_only=False, verbose=1, mode='min')
-    # callbacks
     logger = CSVLogger(save_path + model_name + '/history.csv', separator=',')
     tqdm_callback = tfa.callbacks.TQDMProgressBar()
     memory_cleaner = MemoryCleaner()
     #lr_schedule = LearningRateScheduler(step_decay, verbose=1)
 
     if load_model:
-        custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
+        #custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
         model = keras.models.load_model(save_path + model_name, custom_objects={'BadPix': BadPix})
 
-    # train model
-    val = val_set 
-    gen = load_data.dataset_gen
-
-    training = tf.data.Dataset.from_generator(gen, 
+    # validation dataset
+    gen = load_data.dataset_gen 
+    val_set = tf.data.Dataset.from_generator(gen, 
+                     args=(False, False, True, 32, False, 
+                           True, 9, batch_size, 1000, False, True, False, True),
+                            output_signature=(tf.TensorSpec(shape=(batch_size,) + val_shape, dtype=tf.float32),
+                                              tf.TensorSpec(shape=(batch_size,) + (val_shape[1], val_shape[2]), dtype=tf.float32)))
+    # training dataset
+    train_set = tf.data.Dataset.from_generator(gen, 
                      args=(augment_sintel, augment_hci, True, 32, load_sintel, 
-                           load_hci, 9, batch_size, 1000, True, False, False),
+                           load_hci, 9, batch_size, 1000, True, False, False, False),
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
-    #model.fit(x=training, epochs=epochs, validation_data=val,
+    #model.fit(x=training, epochs=epochs, validation_data=val_set,
     #            validation_batch_size=batch_size, 
     #            callbacks=[TqdmCallback(verbose=2), 
     #                        checkpoint, logger, memory_cleaner],
     #                        workers=8)
 
-    for i in range(epochs)
-        model.fit(x=load_data.multi_input(training), epochs=1, validation_data=load_data.multi_input(val),
-                    validation_batch_size=batch_size, steps_per_epoch=10000, validation_steps=2048, 
+    #training
+    best_badpix=999
+    for i in range(epochs):
+        model.fit(x=load_data.multi_input(train_set), epochs=1, steps_per_epoch=10000, 
                     callbacks=[TqdmCallback(verbose=2), 
                                 logger, memory_cleaner],
-                                workers=8)
+                                workers=4)
         
         weights = model.get_weights()
         val_model.set_weights(weights)
-         
+        evals = val_model.evaluate(load_data.multi_input(val_set), steps=16)
+        badpix = evals[2]
 
-        model.save(save_path + model_name)
-        val_model.save(save_path + model_name + 'val/')
+        print('full model evaluation: ', evals)
+        print('previous best badpix ', best_badpix)
+        if badpix < best_badpix:
+            model.save(save_path + model_name)
+            val_model.save(save_path + model_name + '/val')
+            best_badpix = badpix
+            print('current best badpix ', best_badpix)
+
+        gc.collect()
+        tf.keras.backend.clear_session()
+
 
 
 if __name__ == "__main__":
    
     # initial parameters 
     batch_size = 1
-    input_shape = (9,32,32,9)
+    input_shape = (9, 32, 32, 9)
     val_shape = (9, 512, 512, 9)
 
     #model = net.build_model(input_shape=input_shape, batch_size=batch_size)
     #pred_model = net.build_model(input_shape=val_shape, batch_size=batch_size)
     
     model = net2.build_model(input_shape=input_shape, angres=9)
-    # validation/prediction model with full 512x512 resolution
-    val_model = net2.build_model(input_shape=input_shap, angres=9)
-    # validation dataset
-    gen = load_data.dataset_gen
-    val = tf.data.Dataset.from_generator(gen, 
-                     args=(False, False, True, 32, False, 
-                           True, 9, batch_size, 1000, False, True, False, False),
-                            output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
-                                              tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
+    val_model = net2.build_model(input_shape=val_shape, angres=9)
 
     # training
     start = time.time()
-    train(model=model, input_shape=input_shape, batch_size=batch_size, 
-            val_set=val, epochs=30, model_name='test5', 
-            use_gen=True, load_model=False, load_sintel=False,
-            load_hci=True, augment_sintel=True, augment_hci=True,
+    train(model=model, input_shape=input_shape, val_shape=val_shape, batch_size=batch_size,  
+            epochs=50, model_name='test5', use_gen=True, load_model=False, 
+            load_sintel=False, load_hci=True, augment_sintel=True, augment_hci=True,
             val_model=val_model)
     end = time.time()
     print('time to train: ', end-start)
