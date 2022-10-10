@@ -50,12 +50,16 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
     # model compile
     model.compile(optimizer=optimizer, loss='mae', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
-                            BadPix(name='BadPix7', threshold=0.07)
+                            BadPix(name='BadPix7', threshold=0.07),
+                            BadPix(name='BadPix7', threshold=0.03),
+                            BadPix(name='BadPix7', threshold=0.01)
                             ])
 
     val_model.compile(optimizer=optimizer, loss='mae', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
-                            BadPix(name='BadPix7', threshold=0.07)
+                            BadPix(name='BadPix7', threshold=0.07),
+                            BadPix(name='BadPix7', threshold=0.03),
+                            BadPix(name='BadPix7', threshold=0.01)
                             ])
 
     # callbacks
