@@ -210,10 +210,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     if full_size:
                         imgs.append(lfi)
                         maps.append(d_map) 
-                        if test:
-                            yield imgs
-                        else:
-                            yield (imgs, maps)
+                        yield (imgs, maps)
                         imgs = []
                         maps = []
                     else:
@@ -225,10 +222,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                     imgs.append(crop_img)
                                     maps.append(crop_map) 
                                 if len(imgs) == batch_size:
-                                    if test:
-                                        yield imgs
-                                    else:
-                                        yield (imgs, maps)
+                                    yield (imgs, maps)
                                     imgs = []
                                     maps = []
 
@@ -243,15 +237,11 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     lfi = 0.2126 * img[:,:,:,:,0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
                     
                     if full_size:
-                        imgs.append(lfi)
-                        maps.append(d_map) 
-                        if test:
+                        if len(imgs) < batch_size:
+                            imgs.append(lfi)
+                        if len(imgs) == batch_size:
                             yield imgs
-                        else:
-                            yield (imgs, maps)
-                        imgs = []
-                        maps = []
-
+                            imgs = []
                     else:
                         for x in range(16):
                             for y in range(16): 
@@ -261,6 +251,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                 if len(imgs) == batch_size:
                                     yield imgs
                                     imgs = []
+
 
 class ThreadsafeIter:
     """
@@ -286,16 +277,24 @@ def threadsafe(f):
     return g
 
 @threadsafe
-def multi_input(dataset, angres=9):
+def multi_input(dataset, angres=9, test=False):
     while 1:
         for data in dataset:
-            img_set = data[0]
-            target = data[1]
+            if test:
+                img_set = data
+            else:
+                img_set = data[0]
+
             sai_list = []
             for i in range(angres):
                 for k in range(angres):
                     sai_list.append(img_set[:,i,:,:,k])
-            yield sai_list, target
+
+            if test:
+                yield sai_list,
+            else:
+                target = data[1]
+                yield sai_list, target
 
 
 

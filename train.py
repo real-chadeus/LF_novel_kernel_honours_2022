@@ -6,7 +6,6 @@ from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, C
 import tensorflow_addons as tfa
 import load_data
 import preprocessing.hci_dataset_tools.file_io as hci_io
-import model.model as net
 import model.model2 as net2
 import tensorflow.keras.losses as losses
 from keras import backend as K
@@ -51,15 +50,15 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
     model.compile(optimizer=optimizer, loss='mae', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
                             BadPix(name='BadPix7', threshold=0.07),
-                            BadPix(name='BadPix7', threshold=0.03),
-                            BadPix(name='BadPix7', threshold=0.01)
+                            BadPix(name='BadPix3', threshold=0.03),
+                            BadPix(name='BadPix1', threshold=0.01)
                             ])
 
     val_model.compile(optimizer=optimizer, loss='mae', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
                             BadPix(name='BadPix7', threshold=0.07),
-                            BadPix(name='BadPix7', threshold=0.03),
-                            BadPix(name='BadPix7', threshold=0.01)
+                            BadPix(name='BadPix3', threshold=0.03),
+                            BadPix(name='BadPix1', threshold=0.01)
                             ])
 
     # callbacks
@@ -111,7 +110,7 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
         print('previous best badpix ', best_badpix)
         if badpix < best_badpix:
             model.save(save_path + model_name)
-            val_model.save(save_path + model_name + '/val')
+            val_model.save(save_path + model_name + '_val')
             best_badpix = badpix
             print('current best badpix ', best_badpix)
 
@@ -136,7 +135,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, val_shape=val_shape, batch_size=batch_size,  
-            epochs=50, model_name='test5', use_gen=True, load_model=False, 
+            epochs=50, model_name='test6', use_gen=True, load_model=False, 
             load_sintel=False, load_hci=True, augment_sintel=True, augment_hci=True,
             val_model=val_model)
     end = time.time()

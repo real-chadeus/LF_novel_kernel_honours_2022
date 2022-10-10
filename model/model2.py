@@ -26,7 +26,7 @@ class DepthCueExtractor(tf.keras.Model):
         extracts relative size through center view features
         gets the reduce sum of the pixel values of the current feature map
         '''
-        size_weight = tf.math.reduce_mean(f_maps)  
+        size_weight = tf.math.reduce_mean(f_maps) 
         s_mask = size_weight * f_maps
         return s_mask
 
@@ -245,11 +245,11 @@ def build_model(input_shape, angres):
     for i in range(angres * angres):
         input_list.append(Input(shape=(input_shape[1], input_shape[2], 1)))
     feature_extraction_layer = feature_extraction(input_shape[1], input_shape[2])
+    depth_cue_extractor = DepthCueExtractor()
 
     center = []
     feature_list = []
     n_range = range(35, 45)
-    depth_cue_extractor = DepthCueExtractor()
     
     for i in range(angres * angres):
         f_map = feature_extraction_layer(input_list[i])
