@@ -1,4 +1,3 @@
-from tensorflow.keras.optimizers import RMSprop, Adam
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Input, Activation
 from tensorflow.keras.layers import Conv2D, Reshape, Conv3D, AveragePooling2D, Lambda, UpSampling2D, UpSampling3D, GlobalAveragePooling3D
@@ -11,7 +10,6 @@ import numpy as np
 from tensorflow.python.ops import math_ops
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
-import time
 import tensorflow_addons as tfa
 
 class DepthCueExtractor(tf.keras.Model):
@@ -24,7 +22,7 @@ class DepthCueExtractor(tf.keras.Model):
     def relative_size(self, f_maps):
         '''
         extracts relative size through center view features
-        gets the reduce sum of the pixel values of the current feature map
+        gets the reduce mean of the pixel values of the current feature map
         '''
         size_weight = tf.math.reduce_mean(f_maps) 
         s_mask = size_weight * f_maps

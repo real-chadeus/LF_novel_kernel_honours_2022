@@ -174,7 +174,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                         crop_img, crop_map = random_crop(img, d_map) 
                         if augment_hci:
                             ds = (crop_img, crop_map)
-                            for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=150, num_contrast=150,
+                            for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=50, num_contrast=150,
                                                        num_noise=0, num_sat=150, num_bright=0, num_gamma=150, num_hue=0):
                                 if len(imgs) < batch_size:
                                     imgs.append(im)
@@ -208,11 +208,18 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     d_map = np.swapaxes(d_map, 0, 1)
 
                     if full_size:
-                        imgs.append(lfi)
-                        maps.append(d_map) 
-                        yield (imgs, maps)
-                        imgs = []
-                        maps = []
+                        if test:
+                            if len(imgs) < batch_size:
+                                imgs.append(lfi)
+                            if len(imgs) == batch_size:
+                                yield imgs
+                                imgs = []
+                        else:
+                            imgs.append(lfi)
+                            maps.append(d_map) 
+                            yield (imgs, maps)
+                            imgs = []
+                            maps = []
                     else:
                         for x in range(16):
                             for y in range(16): 

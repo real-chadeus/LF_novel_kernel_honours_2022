@@ -103,7 +103,7 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
         
         weights = model.get_weights()
         val_model.set_weights(weights)
-        evals = val_model.evaluate(load_data.multi_input(val_set), steps=16)
+        evals = val_model.evaluate(load_data.multi_input(val_set), steps=8)
         badpix = evals[2]
 
         print('full model evaluation: ', evals)
