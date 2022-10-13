@@ -57,7 +57,7 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
         noise = np.random.uniform(0, 1, size=img.shape) 
         new_img = img * noise
         new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
-        new_disp = disp * noise[4, :, :, 4]
+        new_disp = disp * noise[4, :, :, 4, :]
         yield (new_img, new_disp)
 
     # random contrast
@@ -148,50 +148,26 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     d_map = np.load(r_dir + '/stacked/center_disp.npy')
                     d_map = np.swapaxes(d_map, 0, 1)
 
-
-                    if full_size:
-                        if augment_hci:
-                            ds = (img, d_map)
-                            for im, m in augment(ds, img_shape=(9,512,512,9), num_flips=0, num_rot=0, num_scale=150, num_contrast=150,
-                                                       num_noise=0, num_sat=150, num_bright=0, num_gamma=150, num_hue=0):
-                                if len(imgs) < batch_size:
-                                    imgs.append(im)
-                                    maps.append(m) 
-                                if len(imgs) == batch_size:
-                                    yield (imgs, maps)
-                                    imgs = []
-                                    maps = []
-
-                        if len(imgs) < batch_size:
-                            lfi = 0.2126 * img[:,:,:,:,0] + 0.7152 * img[:,:,:,:,1] + 0.0722 * img[:,:,:,:,2]
-                            imgs.append(lfi)
-                            maps.append(d_map) 
-                        if len(imgs) == batch_size:
-                            yield (imgs, maps)
-                            imgs = []
-                            maps = []
-                    else:
-                        crop_img, crop_map = random_crop(img, d_map) 
-                        if augment_hci:
-                            ds = (crop_img, crop_map)
-                            for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=50, num_contrast=150,
-                                                       num_noise=0, num_sat=150, num_bright=0, num_gamma=150, num_hue=0):
-                                if len(imgs) < batch_size:
-                                    imgs.append(im)
-                                    maps.append(m) 
-                                if len(imgs) == batch_size:
-                                    yield (imgs, maps)
-                                    imgs = []
-                                    maps = []
-                        if len(imgs) < batch_size:
-                            crop_img = 0.2126 * crop_img[:,:,:,:,0] + 0.7152 * crop_img[:,:,:,:,1] + 0.0722 * crop_img[:,:,:,:,2]
-                            imgs.append(crop_img)
-                            maps.append(crop_map) 
-                        if len(imgs) == batch_size:
-                            yield (imgs, maps)
-                            imgs = []
-                            maps = []
-
+                    crop_img, crop_map = random_crop(img, d_map) 
+                    if augment_hci:
+                        ds = (crop_img, crop_map)
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=1, num_contrast=1,
+                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=1, num_hue=1):
+                            if len(imgs) < batch_size:
+                                imgs.append(im)
+                                maps.append(m) 
+                            if len(imgs) == batch_size:
+                                yield (imgs, maps)
+                                imgs = []
+                                maps = []
+                    if len(imgs) < batch_size:
+                        crop_img = 0.2126 * crop_img[:,:,:,:,0] + 0.7152 * crop_img[:,:,:,:,1] + 0.0722 * crop_img[:,:,:,:,2]
+                        imgs.append(crop_img)
+                        maps.append(crop_map) 
+                    if len(imgs) == batch_size:
+                        yield (imgs, maps)
+                        imgs = []
+                        maps = []
                         
 
                 if validation:

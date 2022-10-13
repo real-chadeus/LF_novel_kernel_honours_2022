@@ -22,7 +22,7 @@ data_path = '../../../datasets'
 #plt.imshow(d_map, interpolation='nearest')
 #plt.show()
 
-preds = np.load('../predictions/pred_0.npy')
+preds = np.load('../predictions/pred_7.npy')
 plt.imshow(preds, interpolation='nearest')
 plt.show()
 

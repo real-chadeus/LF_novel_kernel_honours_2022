@@ -1,7 +1,7 @@
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Input, Activation
 from tensorflow.keras.layers import Conv2D, Reshape, Conv3D, AveragePooling2D, Lambda, UpSampling2D, UpSampling3D, GlobalAveragePooling3D
-from tensorflow.keras.layers import Dropout, BatchNormalization
+from tensorflow.keras.layers import BatchNormalization, LayerNormalization
 from tensorflow.keras.layers import concatenate, add, multiply
 
 import tensorflow as tf
@@ -22,10 +22,12 @@ class DepthCueExtractor(tf.keras.Model):
     def relative_size(self, f_maps):
         '''
         extracts relative size through center view features
-        gets the reduce mean of the pixel values of the current feature map
         '''
         size_weight = tf.math.reduce_mean(f_maps) 
         s_mask = size_weight * f_maps
+        #threshold = 1
+        #size_weight = tf.math.greater(f_maps, threshold)
+        #size_weight = tf.math.reduce_sum(tf.cast(size_weight, tf.int32))
         return s_mask
 
     def height(self, f_maps):
@@ -50,13 +52,13 @@ def convbn(inputs, out_planes, kernel_size, stride, dilation):
                  'same',
                  dilation_rate=dilation,
                  use_bias=False)(inputs)
-    seq = BatchNormalization()(seq)
+    seq = LayerNormalization()(seq)
     return seq
 
 def convbn_3d(inputs, out_planes, kernel_size, stride):
     seq = Conv3D(out_planes, kernel_size, stride, 'same',
                  use_bias=False)(inputs)
-    seq = BatchNormalization()(seq)
+    seq = LayerNormalization()(seq)
     return seq
 
 def BasicBlock(inputs, planes, stride, downsample, dilation):
@@ -75,7 +77,7 @@ def _make_layer(inputs, planes, blocks, stride, dilation):
     downsample = None
     if stride != 1 or inplanes != planes:
         downsample = Conv2D(planes, 1, stride, 'same', use_bias=False)(inputs)
-        downsample = BatchNormalization()(downsample)
+        downsample = LayerNormalization()(downsample)
 
     layers = BasicBlock(inputs, planes, stride, downsample, dilation)
     for i in range(1, blocks):

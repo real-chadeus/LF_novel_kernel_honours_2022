@@ -72,6 +72,7 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
     if load_model:
         #custom_metrics = {'BadPix7': BadPix(threshold=0.07), 'BadPix3': BadPix(threshold=0.03), 'BadPix1': BadPix(threshold=0.01)}
         model = keras.models.load_model(save_path + model_name, custom_objects={'BadPix': BadPix})
+        val_model = keras.models.load_model(save_path + model_name + '_val', custom_objects={'BadPix': BadPix})
 
     # validation dataset
     gen = load_data.dataset_gen 
@@ -87,14 +88,8 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
-    #model.fit(x=training, epochs=epochs, validation_data=val_set,
-    #            validation_batch_size=batch_size, 
-    #            callbacks=[TqdmCallback(verbose=2), 
-    #                        checkpoint, logger, memory_cleaner],
-    #                        workers=8)
-
     #training
-    best_badpix=999
+    best_badpix=0.002
     for i in range(epochs):
         model.fit(x=load_data.multi_input(train_set), epochs=1, steps_per_epoch=10000, 
                     callbacks=[TqdmCallback(verbose=2), 
@@ -116,6 +111,7 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
 
         gc.collect()
         tf.keras.backend.clear_session()
+        print(f'epoch {i} of {epochs}')
 
 
 
@@ -135,7 +131,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, val_shape=val_shape, batch_size=batch_size,  
-            epochs=50, model_name='test6', use_gen=True, load_model=False, 
+            epochs=50, model_name='test6', use_gen=True, load_model=True, 
             load_sintel=False, load_hci=True, augment_sintel=True, augment_hci=True,
             val_model=val_model)
     end = time.time()
