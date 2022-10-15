@@ -76,7 +76,7 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
     gen = load_data.dataset_gen 
     val_set = tf.data.Dataset.from_generator(gen, 
                      args=(False, False, True, 32, False, 
-                           True, 9, batch_size, 1000, False, True, False, True),
+                           True, 9, batch_size, 1000, False, True, True, True),
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + val_shape, dtype=tf.float32),
                                               tf.TensorSpec(shape=(batch_size,) + (val_shape[1], val_shape[2]), dtype=tf.float32)))
 
@@ -115,10 +115,9 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
         badpix = np.mean(badpix_list)
         mse = np.mean(mse_list)
 
-        print(f'full model evaluation.   mean MSE: {mse}, mean badpix: {badpix}')
+        print(f'full model evaluation.   mean MSE: {mse}, mean badpix: {badpix}\nfull mse: {mse_list}\n full badpix: {badpix_list}')
         print('previous best badpix ', best_badpix)
         if badpix < best_badpix:
-            model.save(save_path + model_name)
             val_model.save(save_path + model_name + '_val')
             best_badpix = badpix
             print('current best badpix ', best_badpix)

@@ -23,10 +23,11 @@ class DepthCueExtractor(tf.keras.Model):
         '''
         extracts relative size through center view features
         '''
-        #size_weight = tf.math.reduce_mean(f_maps)
-        size_weight = tf.math.greater(f_maps, 0.1)
-        size_weight = tf.math.reduce_sum(tf.cast(size_weight, tf.float32))
+        size_weight = tf.math.reduce_mean(f_maps)
+        #size_weight = tf.math.less(f_maps, 3)
+        #size_weight = tf.cast(size_weight, tf.float32)
         s_mask = size_weight * f_maps
+        #s_mask = size_weight
         return s_mask
 
     def height(self, f_maps):
@@ -41,6 +42,7 @@ class DepthCueExtractor(tf.keras.Model):
         h_mask = self.height(f_maps)
         s_mask = self.relative_size(f_maps)
         result = h_mask * s_mask
+        tf.print(result)
         return result
 
 def convbn(inputs, out_planes, kernel_size, stride, dilation):
@@ -284,5 +286,9 @@ def build_model(input_shape, angres):
     model.summary()
 
     return model
+
+
+
+
 
 

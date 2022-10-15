@@ -188,7 +188,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                         yield (imgs, maps)
                         imgs = []
                         maps = []
-                        
+
 
                 if validation:
                     if 'stratified' not in r_dir and 'training' not in r_dir:
@@ -204,11 +204,19 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     d_map = np.swapaxes(d_map, 0, 1)
 
                     if full_size:
-                        imgs.append(lfi)
-                        maps.append(d_map) 
-                        yield (imgs, maps)
-                        imgs = []
-                        maps = []
+                        if test:
+                            if len(imgs) < batch_size:
+                                imgs.append(lfi)
+                            if len(imgs) == batch_size:
+                                yield imgs
+                                imgs = []
+                        else:
+                            imgs.append(lfi)
+                            maps.append(d_map) 
+                            yield (imgs, maps)
+                            imgs = []
+                            maps = []
+
                     else:
                         for x in range(16):
                             for y in range(16): 
@@ -275,7 +283,10 @@ def threadsafe(f):
 def multi_input(dataset, angres=9, test=False):
     while 1:
         for data in dataset:
-            img_set = data[0]
+            if test:
+                img_set = data
+            else:
+                img_set = data[0]
 
             sai_list = []
             for i in range(angres):
@@ -286,7 +297,8 @@ def multi_input(dataset, angres=9, test=False):
                 yield sai_list,
             else:
                 target = data[1]
-                yield sai_list, target 
+                yield sai_list, target
+
 
 
 

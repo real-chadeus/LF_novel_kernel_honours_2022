@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 
 data_path = '../../../datasets'
+val_model = 'test6_val'
 
 #img = Image.open(data_path + '/hci_dataset/additional/vinyl/stacked/stacked.png')
 #img = np.asarray(img)
@@ -15,12 +16,12 @@ data_path = '../../../datasets'
 #center1 = img[4,:,:,4]
 #plt.imshow(center1)
 #plt.show()
-#d_map = np.load(data_path + '/hci_dataset/training/cotton/stacked/center_disp.npy')
-#d_map = np.swapaxes(d_map, 0, 1)
-#plt.imshow(d_map, interpolation='nearest')
-#plt.show()
+d_map = np.load(data_path + '/hci_dataset/training/sideboard/stacked/center_disp.npy')
+d_map = np.swapaxes(d_map, 0, 1)
+plt.imshow(d_map, interpolation='nearest')
+plt.show()
 
-preds = np.load('../predictions/pred_5.npy')
+preds = np.load('../predictions/' + val_model + '/pred_11.npy')
 plt.imshow(preds, interpolation='nearest')
 plt.show()
 
