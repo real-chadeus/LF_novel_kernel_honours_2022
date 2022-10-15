@@ -1,32 +1,46 @@
-import pathlib, datetime
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+import model.model2 as net2
+from PIL import Image
 import load_data
-import preprocessing.hci_dataset_tools.file_io as hci_io
-import model.model as net
-import tensorflow.keras.losses as losses
-import argparse
-import plots
+import custom_metrics
 from custom_metrics import BadPix
-import functools
 
-load_path = 'load_models/'
-model_name = 'test5/val/'
+#physical_devices = tf.config.list_physical_devices('GPU')
+#tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True)
+
+load_path = 'saved_models/'
 input_shape = (9,512,512,9)
 batch_size=1
+
 gen = load_data.dataset_gen
 hci = tf.data.Dataset.from_generator(gen, 
                  args=(False, False, True, 32, False, 
-                       True, 9, batch_size, 1000, False, True, False),
+                       True, 9, batch_size, 1000, False, True, False, True),
                         output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                                           tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
-model = net.build_model(input_shape=input_shape, summary=True, 
-                                n_sais=81, batch_size=1)
-model = keras.models.load_model(load_path + model_name, custom_objects={'BadPix': BadPix})
-metrics = model.evaluate(load_data.multi_input(hci), workers=8)
-print(metrics)
+
+model = keras.models.load_model(load_path + 'test6_val', custom_objects={'BadPix': BadPix})
+preds = model.predict(load_data.multi_input(hci, test=True), workers=8, steps=8)
+
+mse_list = []
+badpix_list = []
+
+gt_gen = load_data.disp_gen()
+for pred in preds:
+    ground_truth = next(gt_gen)
+    mse = custom_metrics.mse(pred, ground_truth) 
+    badpix = custom_metrics.badpix(pred, ground_truth)
+    mse_list.append(mse)
+    badpix_list.append(badpix)
+
+print('MSE LIST ', mse_list)
+print('BADPIX LIST ', badpix_list)
+print('MEAN MSE ', np.mean(mse_list))
+print('MEAN BADPIX ', np.mean(badpix)) 
 
 
 

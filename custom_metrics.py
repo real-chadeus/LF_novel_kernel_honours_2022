@@ -8,7 +8,6 @@ import argparse
 
 class BadPix(tf.keras.metrics.Metric):
     def __init__(self, name='BadPix7', threshold=0.07, **kwargs):
-
         super(BadPix, self).__init__(name=name)
         self.badpix = 0 
         self.threshold = tf.constant(threshold, dtype=tf.float32)
@@ -33,10 +32,17 @@ class BadPix(tf.keras.metrics.Metric):
         
     def result(self):
         return self.badpix 
-    
 
 
+def badpix(y_pred, y_true, threshold=0.07):
+    diff = np.abs(y_pred-y_true)
+    bp = np.sum(np.where(diff > threshold, 1, 0)) 
+    bp = bp/np.size(y_true)
+    return bp
 
+def mse(y_pred, y_true):
+    mse = ((y_pred - y_true) ** 2).mean()
+    return mse
 
 
 

@@ -117,6 +117,20 @@ def random_crop(img, disp):
     crop_map = disp[32*x:32*(x+1),32*y:32*(y+1)]
     return (crop_img, crop_map)
 
+def disp_gen():
+    path = data_path + '/hci_dataset/'
+    hci_folder = sorted([d.name for d in os.scandir(path) if d.is_dir()])
+    for sub_dir in hci_folder:
+        hci_r_dirs = sorted([d.name for d in os.scandir(path + sub_dir) if d.is_dir()])
+        for r in hci_r_dirs:
+            r_dir = path + sub_dir + '/' + r
+            if 'stratified' not in r_dir and 'training' not in r_dir:
+                continue
+            d_map = np.load(r_dir + '/stacked/center_disp.npy')
+            d_map = np.swapaxes(d_map, 0, 1)
+
+            yield d_map
+
 def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32,
                 load_sintel=True, load_hci=True, angres=9, batch_size=16, batches=1000,
                 train=True, validation=False, test=False, full_size=False):
@@ -126,16 +140,22 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
     For training only.
     '''
 
+    path = data_path + '/hci_dataset/'
     if load_hci:
         imgs = []
         maps = []
         
-        hci_folder = [d for d in os.scandir(data_path + '/hci_dataset/') if d.is_dir()]
-        for s in hci_folder:
-            sub_dir = s.path
-            hci_r_dirs = [d for d in os.scandir(sub_dir) if d.is_dir()]
-            for d in hci_r_dirs:
-                r_dir = d.path
+        if validation or test:
+            hci_folder = sorted([d.name for d in os.scandir(path) if d.is_dir()])
+        else:
+            hci_folder = [d.name for d in os.scandir(path) if d.is_dir()]
+        for sub_dir in hci_folder:
+            if validation or test:
+                hci_r_dirs = sorted([d.name for d in os.scandir(path + sub_dir) if d.is_dir()])
+            else:
+                hci_r_dirs = [d.name for d in os.scandir(path + sub_dir) if d.is_dir()]
+            for r in hci_r_dirs:
+                r_dir = path + sub_dir + '/' + r
                 if train:
                     if 'additional' not in r_dir:
                         continue
@@ -151,7 +171,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     crop_img, crop_map = random_crop(img, d_map) 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=1, num_contrast=1,
+                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=0, num_contrast=1,
                                                    num_noise=0, num_sat=0, num_bright=0, num_gamma=1, num_hue=1):
                             if len(imgs) < batch_size:
                                 imgs.append(im)
@@ -184,18 +204,11 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     d_map = np.swapaxes(d_map, 0, 1)
 
                     if full_size:
-                        if test:
-                            if len(imgs) < batch_size:
-                                imgs.append(lfi)
-                            if len(imgs) == batch_size:
-                                yield imgs
-                                imgs = []
-                        else:
-                            imgs.append(lfi)
-                            maps.append(d_map) 
-                            yield (imgs, maps)
-                            imgs = []
-                            maps = []
+                        imgs.append(lfi)
+                        maps.append(d_map) 
+                        yield (imgs, maps)
+                        imgs = []
+                        maps = []
                     else:
                         for x in range(16):
                             for y in range(16): 
@@ -235,7 +248,6 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                                     yield imgs
                                     imgs = []
 
-
 class ThreadsafeIter:
     """
     uses mutex to serialize
@@ -263,10 +275,7 @@ def threadsafe(f):
 def multi_input(dataset, angres=9, test=False):
     while 1:
         for data in dataset:
-            if test:
-                img_set = data
-            else:
-                img_set = data[0]
+            img_set = data[0]
 
             sai_list = []
             for i in range(angres):
@@ -277,9 +286,7 @@ def multi_input(dataset, angres=9, test=False):
                 yield sai_list,
             else:
                 target = data[1]
-                yield sai_list, target
-
-
+                yield sai_list, target 
 
 
 

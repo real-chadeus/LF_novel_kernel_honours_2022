@@ -17,12 +17,10 @@ data_path = '../../../datasets'
 #plt.show()
 #d_map = np.load(data_path + '/hci_dataset/training/cotton/stacked/center_disp.npy')
 #d_map = np.swapaxes(d_map, 0, 1)
-#min_val = np.amin(d_map)
-#print('min value', min_val)
 #plt.imshow(d_map, interpolation='nearest')
 #plt.show()
 
-preds = np.load('../predictions/pred_7.npy')
+preds = np.load('../predictions/pred_5.npy')
 plt.imshow(preds, interpolation='nearest')
 plt.show()
 

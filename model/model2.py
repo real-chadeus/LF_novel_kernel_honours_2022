@@ -23,11 +23,10 @@ class DepthCueExtractor(tf.keras.Model):
         '''
         extracts relative size through center view features
         '''
-        size_weight = tf.math.reduce_mean(f_maps) 
+        #size_weight = tf.math.reduce_mean(f_maps)
+        size_weight = tf.math.greater(f_maps, 0.1)
+        size_weight = tf.math.reduce_sum(tf.cast(size_weight, tf.float32))
         s_mask = size_weight * f_maps
-        #threshold = 1
-        #size_weight = tf.math.greater(f_maps, threshold)
-        #size_weight = tf.math.reduce_sum(tf.cast(size_weight, tf.int32))
         return s_mask
 
     def height(self, f_maps):
@@ -238,6 +237,17 @@ def disparity_regression(inputs):
     out = K.sum(multiply([inputs, x]), -1)
     return out
 
+class Tester(tf.keras.Model):
+    '''
+    extracts monocular depth cue information
+    '''
+    def __init__(self):
+        super(Tester, self).__init__(name='tester')
+
+    def call(self, X):
+        tf.print(X, output_stream = sys.stdout, summarize=-1)
+        return X
+
 
 def build_model(input_shape, angres):
     input_list = []
@@ -274,15 +284,5 @@ def build_model(input_shape, angres):
     model.summary()
 
     return model
-
-
-
-
-
-
-
-
-
-
 
 

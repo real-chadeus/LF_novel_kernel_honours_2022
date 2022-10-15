@@ -13,6 +13,7 @@ import numpy as np
 from tqdm.keras import TqdmCallback
 import os
 import argparse
+import custom_metrics
 from custom_metrics import BadPix
 import time
 import functools
@@ -22,9 +23,6 @@ tf.config.experimental.set_memory_growth(device=physical_devices[0], enable=True
 print('tensorflow version: ', tf.__version__)
 tf.compat.v1.RunOptions(report_tensor_allocations_upon_oom=True)
 sintel_folders = ['../../datasets/Sintel_LF/Sintel_LFV_9x9_with_all_disp/ambushfight_1']
-#tf.config.set_logical_device_configuration(
-#    physical_devices[0],
-#    [tf.config.LogicalDeviceConfiguration(memory_limit=8500)])
 save_path = 'saved_models/'
 
 class MemoryCleaner(tf.keras.callbacks.Callback):
@@ -81,6 +79,7 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
                            True, 9, batch_size, 1000, False, True, False, True),
                             output_signature=(tf.TensorSpec(shape=(batch_size,) + val_shape, dtype=tf.float32),
                                               tf.TensorSpec(shape=(batch_size,) + (val_shape[1], val_shape[2]), dtype=tf.float32)))
+
     # training dataset
     train_set = tf.data.Dataset.from_generator(gen, 
                      args=(augment_sintel, augment_hci, True, 32, load_sintel, 
@@ -89,19 +88,34 @@ def train(model, input_shape=(), val_shape=(), dataset=(),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     #training
-    best_badpix=0.002
+    best_badpix=999
     for i in range(epochs):
-        model.fit(x=load_data.multi_input(train_set), epochs=1, steps_per_epoch=10000, 
+        gc.collect()
+        tf.keras.backend.clear_session()
+        model.fit(x=load_data.multi_input(train_set), epochs=1, steps_per_epoch=3000, 
                     callbacks=[TqdmCallback(verbose=2), 
                                 logger, memory_cleaner],
-                                workers=4)
+                                workers=8)
         
         weights = model.get_weights()
         val_model.set_weights(weights)
-        evals = val_model.evaluate(load_data.multi_input(val_set), steps=8)
-        badpix = evals[2]
 
-        print('full model evaluation: ', evals)
+
+        preds = val_model.predict(load_data.multi_input(val_set, test=True), workers=8, steps=8)
+        mse_list = []
+        badpix_list = []
+
+        gt_gen = load_data.disp_gen()
+        for pred in preds:
+            ground_truth = next(gt_gen)
+            mse = custom_metrics.mse(pred, ground_truth) 
+            badpix = custom_metrics.badpix(pred, ground_truth)
+            mse_list.append(mse)
+            badpix_list.append(badpix)
+        badpix = np.mean(badpix_list)
+        mse = np.mean(mse_list)
+
+        print(f'full model evaluation.   mean MSE: {mse}, mean badpix: {badpix}')
         print('previous best badpix ', best_badpix)
         if badpix < best_badpix:
             model.save(save_path + model_name)
@@ -131,17 +145,11 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(model=model, input_shape=input_shape, val_shape=val_shape, batch_size=batch_size,  
-            epochs=50, model_name='test6', use_gen=True, load_model=True, 
+            epochs=50, model_name='test7', use_gen=True, load_model=False, 
             load_sintel=False, load_hci=True, augment_sintel=True, augment_hci=True,
             val_model=val_model)
     end = time.time()
     print('time to train: ', end-start)
-
-
-
-
-
-
 
 
 
