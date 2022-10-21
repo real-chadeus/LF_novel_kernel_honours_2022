@@ -110,11 +110,11 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
     
 
 def random_crop(img, disp):
-    xy_range = np.arange(0, 16)
+    xy_range = np.arange(0, 4)
     x = np.random.choice(xy_range)
     y = np.random.choice(xy_range)
-    crop_img = img[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
-    crop_map = disp[32*x:32*(x+1),32*y:32*(y+1)]
+    crop_img = img[:, 128*x:128*(x+1), 128*y:128*(y+1), :]
+    crop_map = disp[128*x:128*(x+1),128*y:128*(y+1)]
     return (crop_img, crop_map)
 
 def disp_gen():
@@ -171,8 +171,8 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     crop_img, crop_map = random_crop(img, d_map) 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,32,32,9), num_flips=0, num_rot=0, num_scale=0, num_contrast=1,
-                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=1, num_hue=1):
+                        for im, m in augment(ds, img_shape=(9,64,64,9), num_flips=0, num_rot=0, num_scale=0, num_contrast=3,
+                                                   num_noise=0, num_sat=0, num_bright=0, num_gamma=3, num_hue=0):
                             if len(imgs) < batch_size:
                                 imgs.append(im)
                                 maps.append(m) 
@@ -217,19 +217,6 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                             imgs = []
                             maps = []
 
-                    else:
-                        for x in range(16):
-                            for y in range(16): 
-                                crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
-                                crop_map = d_map[32*x:32*(x+1),32*y:32*(y+1)]
-                                if len(imgs) < batch_size:
-                                    imgs.append(crop_img)
-                                    maps.append(crop_map) 
-                                if len(imgs) == batch_size:
-                                    yield (imgs, maps)
-                                    imgs = []
-                                    maps = []
-
                 if test:
                     if 'test' not in r_dir:
                         continue
@@ -246,15 +233,6 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                         if len(imgs) == batch_size:
                             yield imgs
                             imgs = []
-                    else:
-                        for x in range(16):
-                            for y in range(16): 
-                                crop_img = lfi[:, 32*x:32*(x+1), 32*y:32*(y+1), :]
-                                if len(imgs) < batch_size:
-                                    imgs.append(crop_img)
-                                if len(imgs) == batch_size:
-                                    yield imgs
-                                    imgs = []
 
 class ThreadsafeIter:
     """

@@ -1,15 +1,16 @@
+from tensorflow.keras.optimizers import RMSprop, Adam
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Input, Activation
 from tensorflow.keras.layers import Conv2D, Reshape, Conv3D, AveragePooling2D, Lambda, UpSampling2D, UpSampling3D, GlobalAveragePooling3D
-from tensorflow.keras.layers import BatchNormalization, LayerNormalization
+from tensorflow.keras.layers import LayerNormalization, BatchNormalization, Normalization
 from tensorflow.keras.layers import concatenate, add, multiply
-
 import tensorflow as tf
 from tensorflow.keras import backend as K
 import numpy as np
 from tensorflow.python.ops import math_ops
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
+import time
 import tensorflow_addons as tfa
 
 class DepthCueExtractor(tf.keras.Model):
@@ -22,12 +23,10 @@ class DepthCueExtractor(tf.keras.Model):
     def relative_size(self, f_maps):
         '''
         extracts relative size through center view features
+        gets the reduce sum of the pixel values of the current feature map
         '''
-        size_weight = tf.math.reduce_mean(f_maps)
-        #size_weight = tf.math.less(f_maps, 3)
-        #size_weight = tf.cast(size_weight, tf.float32)
+        size_weight = tf.math.reduce_mean(f_maps) 
         s_mask = size_weight * f_maps
-        #s_mask = size_weight
         return s_mask
 
     def height(self, f_maps):
@@ -39,10 +38,9 @@ class DepthCueExtractor(tf.keras.Model):
         return h_mask 
     
     def call(self, f_maps):
-        h_mask = self.height(f_maps)
         s_mask = self.relative_size(f_maps)
+        h_mask = self.height(f_maps)
         result = h_mask * s_mask
-        tf.print(result)
         return result
 
 def convbn(inputs, out_planes, kernel_size, stride, dilation):
@@ -53,13 +51,13 @@ def convbn(inputs, out_planes, kernel_size, stride, dilation):
                  'same',
                  dilation_rate=dilation,
                  use_bias=False)(inputs)
-    seq = LayerNormalization()(seq)
+    seq = BatchNormalization()(seq)
     return seq
 
 def convbn_3d(inputs, out_planes, kernel_size, stride):
     seq = Conv3D(out_planes, kernel_size, stride, 'same',
                  use_bias=False)(inputs)
-    seq = LayerNormalization()(seq)
+    seq = BatchNormalization()(seq)
     return seq
 
 def BasicBlock(inputs, planes, stride, downsample, dilation):
@@ -78,7 +76,7 @@ def _make_layer(inputs, planes, blocks, stride, dilation):
     downsample = None
     if stride != 1 or inplanes != planes:
         downsample = Conv2D(planes, 1, stride, 'same', use_bias=False)(inputs)
-        downsample = LayerNormalization()(downsample)
+        downsample = BatchNormalization()(downsample)
 
     layers = BasicBlock(inputs, planes, stride, downsample, dilation)
     for i in range(1, blocks):
@@ -239,17 +237,6 @@ def disparity_regression(inputs):
     out = K.sum(multiply([inputs, x]), -1)
     return out
 
-class Tester(tf.keras.Model):
-    '''
-    extracts monocular depth cue information
-    '''
-    def __init__(self):
-        super(Tester, self).__init__(name='tester')
-
-    def call(self, X):
-        tf.print(X, output_stream = sys.stdout, summarize=-1)
-        return X
-
 
 def build_model(input_shape, angres):
     input_list = []
@@ -257,11 +244,13 @@ def build_model(input_shape, angres):
     for i in range(angres * angres):
         input_list.append(Input(shape=(input_shape[1], input_shape[2], 1)))
     feature_extraction_layer = feature_extraction(input_shape[1], input_shape[2])
-    depth_cue_extractor = DepthCueExtractor()
 
-    center = []
     feature_list = []
-    n_range = range(35, 45)
+    n_range1 = list(range(30,33))
+    n_range2 = list(range(39,42))
+    n_range3 = list(range(48,51))
+    n_range = n_range1 + n_range2 + n_range3
+    depth_cue_extractor = DepthCueExtractor()
     
     for i in range(angres * angres):
         f_map = feature_extraction_layer(input_list[i])

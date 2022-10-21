@@ -19,7 +19,7 @@ batch_size=1
 gen = load_data.dataset_gen
 hci = tf.data.Dataset.from_generator(gen, 
                  args=(False, False, True, 32, False, 
-                       True, 9, batch_size, 1000, False, True, False, True),
+                       True, 9, batch_size, 1000, False, True, True, True),
                         output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32),
                                           tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
