@@ -117,15 +117,19 @@ def random_crop(img, disp):
     crop_map = disp[128*x:128*(x+1),128*y:128*(y+1)]
     return (crop_img, crop_map)
 
-def disp_gen():
+def disp_gen(evaluate=True, test=False):
     path = data_path + '/hci_dataset/'
     hci_folder = sorted([d.name for d in os.scandir(path) if d.is_dir()])
     for sub_dir in hci_folder:
         hci_r_dirs = sorted([d.name for d in os.scandir(path + sub_dir) if d.is_dir()])
         for r in hci_r_dirs:
             r_dir = path + sub_dir + '/' + r
-            if 'stratified' not in r_dir and 'training' not in r_dir:
-                continue
+            if evaluate:
+                if 'stratified' not in r_dir and 'training' not in r_dir:
+                    continue
+            if test:
+                if 'test' not in r_dir:
+                    continue
             d_map = np.load(r_dir + '/stacked/center_disp.npy')
             d_map = np.swapaxes(d_map, 0, 1)
 

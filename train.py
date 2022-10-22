@@ -85,7 +85,7 @@ def train(input_shape=(), val_shape=(), dataset=(),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     #training
-    best_badpix=0.185
+    best_badpix=0.08
     for i in range(epochs):
         gc.collect()
         tf.keras.backend.clear_session()
