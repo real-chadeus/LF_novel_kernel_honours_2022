@@ -85,8 +85,9 @@ def train(input_shape=(), val_shape=(), dataset=(),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     #training
-    best_badpix=0.08
+    best_badpix=0.057
     for i in range(epochs):
+        print(f'epoch {i+1} of {epochs} starting')
         gc.collect()
         tf.keras.backend.clear_session()
         model.fit(x=load_data.multi_input(train_set), epochs=1, steps_per_epoch=5000, 
@@ -142,7 +143,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(input_shape=input_shape, val_shape=val_shape, batch_size=batch_size,  
-            epochs=4, model_name='test11', save_model='test11', use_gen=True, load_model=True, 
+            epochs=3, model_name='test11', save_model='test11', use_gen=True, load_model=True, 
             load_sintel=False, load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
     print('time to train: ', end-start)

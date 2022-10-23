@@ -175,7 +175,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
                     crop_img, crop_map = random_crop(img, d_map) 
                     if augment_hci:
                         ds = (crop_img, crop_map)
-                        for im, m in augment(ds, img_shape=(9,64,64,9), num_flips=0, num_rot=0, num_scale=0, num_contrast=3,
+                        for im, m in augment(ds, img_shape=(9,128,128,9), num_flips=0, num_rot=0, num_scale=0, num_contrast=3,
                                                    num_noise=0, num_sat=0, num_bright=0, num_gamma=3, num_hue=0):
                             if len(imgs) < batch_size:
                                 imgs.append(im)

@@ -1,62 +1,53 @@
 import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
 import matplotlib.pyplot as plt
 import model.model2 as net2
-from PIL import Image
 import load_data
 import custom_metrics
-from custom_metrics import BadPix
-import preprocessing.hci_dataset_tools.file_io as file_io
+import os
 
-load_path = 'saved_models/'
-input_shape = (9,512,512,9)
-batch_size=1
-model_name = 'test11_val'
+data_path = '../../datasets'
+path = data_path + '/hci_dataset/'
+pred_path = 'predictions/'
+pred_model = 'test11_val/'
 
-gen = load_data.dataset_gen
-hci_eval = tf.data.Dataset.from_generator(gen, 
-                 args=(False, False, True, 32, False, 
-                       True, 9, batch_size, 1000, False, True, True, True),
-                        output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32)))
-hci_test = tf.data.Dataset.from_generator(gen, 
-                 args=(False, False, True, 32, False, 
-                       True, 9, batch_size, 1000, False, False, True, True),
-                        output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32)))
+badpix7_dict = {} 
+badpix3_dict = {}
+badpix1_dict = {}
+mse_dict = {}
+hci_folder = [d.name for d in os.scandir(path) if d.is_dir()]
+for sub_dir in hci_folder:
+    scenes = [d.name for d in os.scandir(path + sub_dir) if d.is_dir()]
+    for scene in scenes:
+        r_dir = path + sub_dir + '/' + scene
+        if 'stratified' not in r_dir and 'training' not in r_dir:
+            continue
+        gt = np.load(r_dir + '/stacked/center_disp.npy')
+        gt = np.swapaxes(gt, 0, 1)
+        pred = np.load(pred_path + pred_model + f'{scene}.npy')
 
-model = keras.models.load_model(load_path + model_name, custom_objects={'BadPix': BadPix})
-preds = model.predict(load_data.multi_input(hci_eval, test=True), workers=8, steps=8)
-mse_list = []
-badpix_list = []
-gt_gen = load_data.disp_gen()
-k = 0
-for pred in preds:
-    ground_truth = next(gt_gen)
-    mse = custom_metrics.mse(pred, ground_truth) 
-    badpix = custom_metrics.badpix(pred, ground_truth)
-    mse_list.append(mse)
-    badpix_list.append(badpix)
-    file_io.write_pfm(pred, 'predictions/' + model_name + f'/pred_{k}.pfm') 
-    k += 1
+        badpix7 = custom_metrics.badpix(y_pred=pred, y_true=gt, threshold=0.07)
+        badpix7_dict[scene] = badpix7
 
+        badpix3 = custom_metrics.badpix(y_pred=pred, y_true=gt, threshold=0.03)
+        badpix3_dict[scene] = badpix3
 
-preds = model.predict(load_data.multi_input(hci_test, test=True), workers=8, steps=4)
-gt_gen = load_data.disp_gen(evaluate=False, test=True)
-for pred in preds:
-    ground_truth = next(gt_gen)
-    file_io.write_pfm(pred, 'predictions/' + model_name + f'/pred_{k}.pfm') 
-    k += 1
+        badpix1 = custom_metrics.badpix(y_pred=pred, y_true=gt, threshold=0.01)
+        badpix1_dict[scene] = badpix1
 
-print('MSE LIST ', mse_list)
-print('BADPIX LIST ', badpix_list)
-print('MEAN MSE ', np.mean(mse_list))
-print('MEAN BADPIX ', np.mean(badpix)) 
+        mse = custom_metrics.mse(pred, gt)
+        mse_dict[scene] = mse
 
+        diff_map = np.abs(pred-gt)
+        np.save(pred_path + pred_model + f'{scene}_diff.npy', diff_map)
 
-
-
-
+print('Badpix threshold 0.07: ', badpix7_dict) 
+print('mean: ', np.mean(list(badpix7_dict.values())))
+print('Badpix threshold 0.03: ', badpix3_dict)
+print('mean: ', np.mean(list(badpix3_dict.values())))
+print('Badpix threshold 0.01: ', badpix1_dict)
+print('mean: ', np.mean(list(badpix1_dict.values())))
+print('MSE :', mse_dict)
+print('mean: ', np.mean(list(mse_dict.values())))
 
 
 
