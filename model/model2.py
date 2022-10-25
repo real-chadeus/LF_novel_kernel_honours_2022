@@ -33,7 +33,7 @@ class DepthCueExtractor(tf.keras.Model):
         '''
         extracts height in plane from the feature map
         '''
-        height_vectors = tf.math.reduce_mean(f_maps, axis=2) 
+        height_vectors = tf.math.reduce_mean(f_maps, axis=1) 
         h_mask = height_vectors * f_maps
         return h_mask 
     

@@ -16,10 +16,10 @@ val_model = 'test11_val'
 #center1 = img[4,:,:,4]
 #plt.imshow(center1)
 #plt.show()
-d_map = np.load(data_path + '/hci_dataset/training/boxes/stacked/center_disp.npy')
-d_map = np.swapaxes(d_map, 0, 1)
-plt.imshow(d_map)
-plt.show()
+#d_map = np.load(data_path + '/hci_dataset/training/backgammon/stacked/center_disp.npy')
+#d_map = np.swapaxes(d_map, 0, 1)
+#plt.imshow(d_map)
+#plt.show()
 
 preds = np.load('../predictions/' + val_model + '/boxes.npy')
 plt.imshow(preds)

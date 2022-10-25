@@ -72,10 +72,6 @@ def train(input_shape=(), val_shape=(), dataset=(),
 
     # validation dataset
     gen = load_data.dataset_gen 
-    val_set = tf.data.Dataset.from_generator(gen, 
-                     args=(False, False, True, 32, False, 
-                           True, 9, batch_size, 1000, False, True, True, True),
-                            output_signature=(tf.TensorSpec(shape=(batch_size,) + val_shape, dtype=tf.float32)))
 
     # training dataset
     train_set = tf.data.Dataset.from_generator(gen, 
@@ -85,7 +81,7 @@ def train(input_shape=(), val_shape=(), dataset=(),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     #training
-    best_badpix=0.057
+    best_badpix=1
     for i in range(epochs):
         print(f'epoch {i+1} of {epochs} starting')
         gc.collect()
@@ -98,6 +94,11 @@ def train(input_shape=(), val_shape=(), dataset=(),
         weights = model.get_weights()
         val_model.set_weights(weights)
 
+        val_gen = load_data.dataset_gen
+        val_set = tf.data.Dataset.from_generator(val_gen, 
+                         args=(False, False, True, 32, False, 
+                               True, 9, batch_size, 1000, False, True, True, True),
+                                output_signature=(tf.TensorSpec(shape=(batch_size,) + val_shape, dtype=tf.float32)))
         preds = val_model.predict(load_data.multi_input(val_set, test=True), workers=8, steps=8)
         mse_list = []
         badpix_list = []
@@ -143,7 +144,7 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(input_shape=input_shape, val_shape=val_shape, batch_size=batch_size,  
-            epochs=3, model_name='test11', save_model='test11', use_gen=True, load_model=True, 
+            epochs=3, model_name='test12', save_model='test12', use_gen=True, load_model=False, 
             load_sintel=False, load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
     print('time to train: ', end-start)
