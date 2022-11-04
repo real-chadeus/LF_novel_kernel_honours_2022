@@ -8,13 +8,13 @@ from PIL import Image
 import load_data
 import custom_metrics
 from custom_metrics import BadPix
-from preprocessing.hci_dataset_tools import file_io
+import pfm as file_io
 import time
 
 load_path = 'saved_models/'
 input_shape = (9,512,512,9)
 batch_size=1
-model_name = 'test11_val'
+model_name = 'test14_val'
 
 
 class Timer(tf.keras.callbacks.Callback):
@@ -25,14 +25,14 @@ class Timer(tf.keras.callbacks.Callback):
                                 'boxes', 'cotton', 'dino', 'sideboard', 'bedroom', 
                                     'bicycle', 'herbs', 'origami']
         
-    def on_batch_begin(self, batch, logs=None);
+    def on_batch_begin(self, batch, logs=None):
         self.time = time.time()
          
-    def on_epoch_end(self, epoch, logs=None):
+    def on_batch_end(self, epoch, logs=None):
         curr_time = time.time()
-        runtime = curr_time-time.time()
-        print(f'runtime {self.scene_list[self.k]}: {runtime}')
-        with open('predictions/' + model_name + f'/{self.scene_list[self.k]}.txt', 'w') as f:
+        runtime = curr_time-self.time
+        curr_scene = self.scene_list[self.k]
+        with open('predictions/' + model_name + f'/{curr_scene}.txt', 'w+') as f:
             f.write(runtime)
         self.k += 1
 
@@ -46,14 +46,15 @@ hci_test = tf.data.Dataset.from_generator(gen,
                        True, 9, batch_size, 1000, False, False, True, True),
                         output_signature=(tf.TensorSpec(shape=(batch_size,) + input_shape, dtype=tf.float32)))
 
-runtimeTimer = Timer()
 model = keras.models.load_model(load_path + model_name, custom_objects={'BadPix': BadPix})
-preds = model.predict(load_data.multi_input(hci_eval, test=True), workers=8, steps=8, callbacks=[runtimeTimer])
+preds = model.predict(load_data.multi_input(hci_eval, test=True), workers=8, steps=8)
 mse_list = []
 badpix_list = []
 gt_gen = load_data.disp_gen()
 k = 0
-scene_list = ['backgammon', 'dots', 'pyramids', 'stripes', 'boxes', 'cotton', 'dino', 'sideboard', 'bedroom', 'bicycle', 'herbs', 'origami']
+scene_list = ['backgammon', 'dots', 'pyramids', 'stripes', 
+                'boxes', 'cotton', 'dino', 'sideboard', 'bedroom', 
+                'bicycle', 'herbs', 'origami']
 for pred in preds:
     ground_truth = next(gt_gen)
     mse = custom_metrics.mse(pred, ground_truth) 
@@ -64,7 +65,8 @@ for pred in preds:
     file_io.write_pfm(pred,  'predictions/' + model_name + f'/{scene_list[k]}.pfm')
     k += 1
 
-preds = model.predict(load_data.multi_input(hci_test, test=True), workers=8, steps=4, callbacks=[runtimeTimer])
+model = keras.models.load_model(load_path + model_name, custom_objects={'BadPix': BadPix})
+preds = model.predict(load_data.multi_input(hci_test, test=True), workers=8, steps=4)
 for pred in preds:
     np.save('predictions/' + model_name + f'/{scene_list[k]}.npy', pred)
     file_io.write_pfm(pred,  'predictions/' + model_name + f'/{scene_list[k]}.pfm')

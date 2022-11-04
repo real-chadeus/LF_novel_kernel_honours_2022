@@ -40,10 +40,18 @@ def badpix(y_pred, y_true, threshold=0.07):
     bp = bp/np.size(y_true)
     return bp
 
+def badpix_map(y_pred, y_true, threshold=0.07):
+    diff = np.abs(y_pred-y_true)
+    bp_map = np.where(diff > threshold, 1, 0) 
+    return bp_map
+
 def mse(y_pred, y_true):
     mse = ((y_pred - y_true) ** 2).mean()
     return mse
 
 
+def mse_map(y_pred, y_true):
+    mse_map = ((y_pred - y_true) ** 2)
+    return mse_map
 
 

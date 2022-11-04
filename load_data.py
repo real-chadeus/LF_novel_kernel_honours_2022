@@ -27,15 +27,8 @@ def augment(dataset, img_shape=(81,512,512,3), num_flips=1, num_rot=1, num_contr
 
     # random flip
     for i in range(num_flips):
-        axes = [1,2]
-        flip_axis = np.random.choice(axes)
-        if flip_axis == 1:
-            d_axis = 0
-        else:
-            d_axis = 1
-
-        new_img = np.flip(img, axis=flip_axis)
-        new_disp = np.flip(disp, axis=d_axis)
+        new_img = np.flip(img, axis=2)
+        new_disp = np.flip(disp, axis=1)
         new_img = 0.2126 * new_img[:,:,:,:,0] + 0.7152 * new_img[:,:,:,:,1] + 0.0722 * new_img[:,:,:,:,2]
 
         yield (new_img, new_disp)
@@ -240,7 +233,7 @@ def dataset_gen(augment_sintel=True, augment_hci=True, crop=True, window_size=32
 
 class ThreadsafeIter:
     """
-    uses mutex to serialize
+    serialize
     """
     def __init__(self, it):
         self.it = it

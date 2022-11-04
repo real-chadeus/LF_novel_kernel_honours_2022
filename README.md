@@ -1,4 +1,5 @@
-# Novel kernel for light field depth estimation Honours project 2022 Sydney University 
+# Deep light field depth estimation via integration of monocular cues and mutlti-view features 
+#  Honours project 2022 Sydney University 
 
 
 

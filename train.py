@@ -52,14 +52,14 @@ def train(input_shape=(), val_shape=(), dataset=(),
     #loss = losses.MeanAbsoluteError()
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
     # model compile
-    model.compile(optimizer=optimizer, loss='mae', 
+    model.compile(optimizer=optimizer, loss='mse', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
                             BadPix(name='BadPix7', threshold=0.07),
                             BadPix(name='BadPix3', threshold=0.03),
                             BadPix(name='BadPix1', threshold=0.01)
                             ])
 
-    val_model.compile(optimizer=optimizer, loss='mae', 
+    val_model.compile(optimizer=optimizer, loss='mse', 
                    metrics=[tf.keras.metrics.MeanSquaredError(),
                             BadPix(name='BadPix7', threshold=0.07),
                             BadPix(name='BadPix3', threshold=0.03),
@@ -81,7 +81,7 @@ def train(input_shape=(), val_shape=(), dataset=(),
                                               tf.TensorSpec(shape=(batch_size,) + (input_shape[1], input_shape[2]), dtype=tf.float32)))
 
     #training
-    best_badpix=1
+    best_badpix=0.05
     for i in range(epochs):
         print(f'epoch {i+1} of {epochs} starting')
         gc.collect()
@@ -144,10 +144,13 @@ if __name__ == "__main__":
     # training
     start = time.time()
     train(input_shape=input_shape, val_shape=val_shape, batch_size=batch_size,  
-            epochs=3, model_name='test12', save_model='test12', use_gen=True, load_model=False, 
+            epochs=1, model_name='test15', save_model='test15', use_gen=True, load_model=True, 
             load_sintel=False, load_hci=True, augment_sintel=True, augment_hci=True)
     end = time.time()
     print('time to train: ', end-start)
+
+
+
 
 
 
